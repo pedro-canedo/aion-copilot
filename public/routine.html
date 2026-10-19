@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="pt-BR" class="copilot">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>aion-copilot — Rotina</title>
+    <link href="/src/routine.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <section class="panel" aria-label="Rotina">
+      <header class="head" data-drag>
+        <div class="title">
+          <span class="kicker">Rotina</span>
+          <span class="eyebrow charName">Rotina</span>
+          <span class="resets">
+            <span>Diário <b class="dailyIn">—</b></span>
+            <span>Semanal <b class="weeklyIn">—</b></span>
+          </span>
+        </div>
+        <div class="tools">
+          <label class="quickOpacity" title="Transparência">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M12 20a6 6 0 0 0 6-6H6" fill="currentColor" opacity="0.35"/></svg>
+            <input class="opacityInput" type="range" min="0" max="100" step="5" value="55" aria-label="Transparência do fundo" />
+          </label>
+          <span class="grip" title="Arraste para mover" data-drag aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+          <button type="button" class="iconBtn lockBtn" aria-label="Travar posição" title="Travar posição"></button>
+          <button type="button" class="iconBtn closeBtn" aria-label="Fechar" title="Fechar"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+      </header>
+
+      <div class="naoPerca" role="status" hidden>
+        <span class="naoPercaTitle">Não perca</span>
+        <span class="naoPercaText"></span>
+      </div>
+
+      <div class="lists">
+        <div class="group auto">
+          <div class="groupHead"><span>Agora</span><span class="groupCount autoLive"></span></div>
+          <ul class="raList"></ul>
+          <p class="raSource" hidden></p>
+          <details class="devCounters" hidden>
+            <summary>Contadores do jogo (desenvolvedor)</summary>
+            <ul class="devList"></ul>
+          </details>
+        </div>
+        <div class="group" data-scope="daily">
+          <div class="groupHead"><span>Hoje</span><span class="groupCount"></span></div>
+          <ul class="items"></ul>
+        </div>
+        <div class="group" data-scope="weekly">
+          <div class="groupHead"><span>Esta semana</span><span class="groupCount"></span></div>
+          <ul class="items"></ul>
+        </div>
+      </div>
+
+      <form class="add" autocomplete="off">
+        <label class="sr" for="newTask">Nova tarefa</label>
+        <input id="newTask" class="newTask" type="text" maxlength="48" placeholder="Nova tarefa (ex.: Arena 0/80)" />
+        <select class="newScope" aria-label="Quando reseta">
+          <option value="daily">Diária</option>
+          <option value="weekly">Semanal</option>
+        </select>
+        <button type="submit" class="addBtn">Adicionar</button>
+      </form>
+    </section>
+    <script src="/src/js/overlayChrome.js"></script>
+    <script src="/src/js/timersCore.js"></script>
+    <script src="/src/js/routineAuto.js"></script>
+    <script src="/src/js/routine.js"></script>
+  </body>
+</html>

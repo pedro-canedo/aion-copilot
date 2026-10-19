@@ -970,13 +970,18 @@ class DpsApp {
     this.applyHoverTooltip(row);
   }
 
+  // aion-copilot: its hover card lists every skill (scrolling), not five.
+  hoverSkillCount() {
+    return document.documentElement?.classList?.contains?.("copilot") ? 40 : 5;
+  }
+
   getJobColor(job) {
     return this.jobColorMap[String(job || "")] || "";
   }
 
   renderHoverTooltip(details, row, rowEl) {
     if (!this.hoverTooltipEl || !rowEl) return;
-    const skills = Array.isArray(details?.skills) ? details.skills.slice(0, 5) : [];
+    const skills = Array.isArray(details?.skills) ? details.skills.slice(0, this.hoverSkillCount()) : [];
     const tooltipState = details?.state || "empty";
     const stateFallback = {
       loading: "Loading...",
@@ -1124,12 +1129,12 @@ class DpsApp {
     this.hoverTooltipRequestSeqByRowId.set(rowId, requestSeq);
     this.hoverTooltipPendingRowIds.add(rowId);
 
-    this.getDetails(row, { maxSkills: 5, showSkillIcons: false, summaryOnly: true })
+    this.getDetails(row, { maxSkills: this.hoverSkillCount(), showSkillIcons: false, summaryOnly: true })
       .then((details) => {
         if (this.hoverTooltipRequestSeqByRowId.get(rowId) !== requestSeq
           || requestSeq.targetContext !== this.getHoverTooltipTargetContext()) return;
         this.hoverTooltipPendingRowIds.delete(rowId);
-        const lightweightDetails = { skills: Array.isArray(details?.skills) ? details.skills.slice(0, 5) : [], snapshot };
+        const lightweightDetails = { skills: Array.isArray(details?.skills) ? details.skills.slice(0, this.hoverSkillCount()) : [], snapshot };
         this.hoverTooltipCacheByRowId.set(rowId, lightweightDetails);
         if (this.hoveredDetailsRowId !== rowId || this.hoverTooltipDismissed) return;
         // Damage updates within the same target set can continue while a slow
@@ -1541,8 +1546,11 @@ class DpsApp {
       const isOthers = !!(isObj && value.isOthers);
       const hasNickname = !!nickname && nickname !== idText;
       const isIdentifying = !hasNickname;
+      // aion-copilot: how many players the Others row stands for.
+      const othersCount = Math.trunc(Number(isObj ? value.othersCount : 0)) || 0;
+      const othersName = this.i18n?.t?.("meter.others", "Others") ?? "Others";
       const name = isOthers
-        ? this.i18n?.t?.("meter.others", "Others") ?? "Others"
+        ? othersCount > 0 ? `${othersName} · ${othersCount} ${othersCount === 1 ? "jogador" : "jogadores"}` : othersName
         : hasNickname ? nickname : idText;
 
       const dpsRaw = isObj ? value.dps : value;
@@ -1565,6 +1573,9 @@ class DpsApp {
       // players actually in your party; 0 means "unknown", not "zero CP".
       const combatPower = Math.trunc(Number(isObj ? value.combatPower : 0)) || 0;
       const gearScore = Math.trunc(Number(isObj ? value.gearScore : 0)) || 0;
+      // Deaths and revives in this fight (aion-copilot).
+      const deaths = Math.trunc(Number(isObj ? value.deaths : 0)) || 0;
+      const revives = Math.trunc(Number(isObj ? value.revives : 0)) || 0;
 
       rows.push({
         id: String(id),
@@ -1577,8 +1588,13 @@ class DpsApp {
         damageContribution,
         combatPower,
         gearScore,
+        deaths,
+        revives,
         isUser: !isOthers && ((!!name && name === this.USER_NAME) || (hasLocalId && numericId === localId)),
         isOthers,
+        // Outside your party on a world boss: only their damage over time
+        // arrives, so the figure is a floor (aion-copilot).
+        partial: !!(isObj && value.partial),
         isIdentifying,
         // Resolved in Rust against a downloaded roster; the frontend only
         // renders it. Cosmetic only — it must not reach sorting or bar colour.
@@ -2193,7 +2209,7 @@ class DpsApp {
 
     if (summaryOnly) {
       skills.sort((a, b) => b.dmg - a.dmg);
-      return { skills: skills.slice(0, 5) };
+      return { skills: skills.slice(0, this.hoverSkillCount()) };
     }
 
     if (Number.isFinite(Number(maxSkills)) && Number(maxSkills) > 0 && skills.length > Number(maxSkills)) {
@@ -3178,7 +3194,19 @@ class DpsApp {
         const next = Math.max(0, Math.min(100, Math.round(value)));
         this.windowOpacityValue.textContent = `${next}%`;
         this.applyWindowOpacity(next, { persist: true });
+        if (quickOpacity && event.target !== quickOpacity) quickOpacity.value = String(next);
       });
+      // aion-copilot: the header's slider drives the same setting, so it is
+      // saved and kept in step with Settings.
+      const quickOpacity = document.querySelector(".quickOpacityInput");
+      if (quickOpacity) {
+        quickOpacity.value = String(resolvedWindowOpacity);
+        quickOpacity.addEventListener("mousedown", stopDrag);
+        quickOpacity.addEventListener("input", (event) => {
+          this.windowOpacityInput.value = event.target.value;
+          this.windowOpacityInput.dispatchEvent(new Event("input"));
+        });
+      }
     }
 
     // Title bar opacity: its own once moved, else the background's.
@@ -6330,7 +6358,8 @@ class DpsApp {
       .then((supported) => {
         if (!supported) return;
         document.querySelectorAll(".lockSetting").forEach((el) => { el.style.display = ""; });
-        const show = this.safeGetSetting(this.storageKeys.showLockBtn) === "true";
+        // aion-copilot: the lock is on show unless turned off in Settings.
+        const show = this.safeGetSetting(this.storageKeys.showLockBtn) !== "false";
         if (this.showLockBtnCheckbox) {
           this.showLockBtnCheckbox.checked = show;
           this.showLockBtnCheckbox.addEventListener("change", (event) => {

@@ -1,0 +1,6 @@
+s = open("hooks-real.nsh", "rb").read().decode("utf-8-sig")
+bs = chr(92)
+t = s.replace("SOFTWARE" + bs + "Npcap", "SOFTWARE" + bs + "NpcapAusenteTeste")
+t = t.replace(bs + "Npcap" + bs + "wpcap.dll", bs + "NpcapAusenteTeste" + bs + "wpcap.dll")
+open("hooks-ausente.nsh", "wb").write(b"\xef\xbb\xbf" + t.encode("utf-8"))
+print(t.count("NpcapAusenteTeste"))

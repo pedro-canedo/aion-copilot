@@ -1,0 +1,477 @@
+/* aion-copilot · "Éter" layout on top of the meter's own styles.
+   Rows read: class icon | name (+ deaths, revives) | CP | damage | heal | share.
+   Everything here is scoped to html.copilot so the upstream themes stay intact
+   underneath and upstream merges touch styles.css, not this file. */
+
+@font-face {
+  font-family: "Sora";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/vendor/fonts/copilot/sora-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Sora";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/vendor/fonts/copilot/sora-latin-ext-400-normal.woff2") format("woff2");
+  unicode-range: U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "Sora";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/vendor/fonts/copilot/sora-latin-600-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Sora";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/vendor/fonts/copilot/sora-latin-ext-600-normal.woff2") format("woff2");
+  unicode-range: U+0100-02AF, U+0304, U+0308, U+0329, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/vendor/fonts/copilot/jetbrains-mono-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/vendor/fonts/copilot/jetbrains-mono-latin-600-normal.woff2") format("woff2");
+}
+
+html.copilot {
+  --copilot-accent: #8fd3ff;
+  --copilot-text: #eaf3f8;
+  --copilot-sub: #9fb7c4;
+  --copilot-heal: #8fe0a8;
+  --copilot-death: #ffa595;
+  --copilot-revive: #8fe0d0;
+  --copilot-edge: rgba(190, 225, 245, 0.18);
+  --hud-bg: 16, 24, 28;
+  --hud-ident: "Sora", "Pretendard", "Segoe UI", sans-serif;
+  --hud-tech: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+  --hud-row-h: 32px;
+  --hud-gap: 5px;
+  --isUser-fill: var(--copilot-accent);
+}
+
+/* ---------- shell ---------- */
+
+html.copilot .meter {
+  width: 470px;
+  border-radius: 16px;
+  border: 1px solid var(--copilot-edge);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, calc(var(--window-opacity) * 0.55));
+  font-family: var(--hud-ident);
+  color: var(--copilot-text);
+}
+
+html.copilot .header {
+  padding: 10px 12px 8px;
+  gap: 10px;
+}
+html.copilot .header .bossNames .bossName {
+  font-family: var(--hud-ident);
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+/* Quick controls: transparency at hand, a grip that says "drag me", the lock. */
+html.copilot .header .headerBtns {
+  align-items: center;
+  gap: 6px;
+}
+html.copilot .quickOpacity {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--copilot-sub);
+  cursor: default;
+}
+html.copilot .quickOpacity input {
+  width: 64px;
+  margin: 0;
+  accent-color: var(--copilot-accent);
+  cursor: pointer;
+}
+html.copilot .dragGrip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 24px;
+  border-radius: 6px;
+  color: var(--copilot-sub);
+  cursor: grab;
+}
+html.copilot .dragGrip:hover { color: var(--copilot-text); background: rgba(255, 255, 255, 0.06); }
+/* Locked: the overlay is click-through and stays where it is. */
+body.overlayLocked .quickOpacity,
+body.overlayLocked .dragGrip { display: none; }
+html.copilot .header .headerBtns .lockBtn.isLocked { color: var(--copilot-accent); }
+
+/* ---------- rows ---------- */
+
+html.copilot .list { padding: 0 10px; }
+html.copilot .list.hasRows { padding: 6px 10px 10px; }
+
+html.copilot .list .item {
+  border-radius: 8px;
+  padding: 0 10px 0 8px;
+  background: rgba(255, 255, 255, 0.04);
+}
+html.copilot .list .item.isUser {
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--copilot-accent) 45%, transparent);
+}
+
+/* Bars in the class colour, soft; yours in the accent. */
+html.copilot .list .item .fill {
+  --bar: var(--class-fill, var(--row-fill));
+  --bar-base: linear-gradient(90deg,
+    color-mix(in srgb, var(--bar) 22%, rgb(var(--hud-bg))) 0%,
+    color-mix(in srgb, var(--bar) 42%, rgb(var(--hud-bg))) 100%);
+}
+html.copilot .list .item.isUser .fill { --bar: var(--copilot-accent); }
+html.copilot .list .item .fill::after { width: 1px; box-shadow: none; }
+
+html.copilot .list .item .content { gap: 8px; }
+html.copilot .list .item .rank { display: none; }
+html.copilot .list .item .classIcon { width: 22px; height: 22px; }
+
+html.copilot .list .item .name {
+  font-family: var(--hud-ident);
+  font-size: 13px;
+  font-variation-settings: normal;
+  font-weight: 400;
+}
+html.copilot .list .item.isUser .name { font-weight: 600; }
+
+html.copilot .list .item .rowDeaths,
+html.copilot .list .item .rowRevives {
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  font-family: var(--hud-tech);
+  font-size: 11px;
+  line-height: 1;
+}
+html.copilot .list .item .rowDeaths { color: var(--copilot-death); }
+html.copilot .list .item .rowRevives { color: var(--copilot-revive); }
+
+/* CP: a fixed slot so the numbers line up row to row, empty for players
+   outside your party (the roster is the only source). */
+html.copilot .list .item .combatPower {
+  display: inline-flex !important;
+  justify-content: center;
+  min-width: 64px;
+  margin-left: auto;
+  top: 0;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  font-family: var(--hud-tech);
+  font-variation-settings: normal;
+  font-size: 11px;
+  font-weight: 400;
+  color: #c9dbe5;
+  text-shadow: none;
+}
+html.copilot .list .item .combatPower:empty { background: transparent; }
+
+html.copilot .list .item .dps {
+  margin-left: 4px;
+  margin-right: 0;
+  padding: 0;
+  gap: 0;
+  background: none;
+  align-items: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+html.copilot .list .item .dps > p {
+  font-family: var(--hud-tech);
+  font-variation-settings: normal;
+  font-size: 13px;
+  text-align: right;
+}
+html.copilot .list .item .dps > p:first-child { display: none; } /* DPS: in the tooltip */
+html.copilot .list .item .dps .dmgTotal { min-width: 62px; font-weight: 600; }
+html.copilot .list .item .dps .healTotal { min-width: 60px; color: var(--copilot-heal); }
+html.copilot .list .item .dps .healTotal.isEmpty { color: rgba(159, 183, 196, 0.45); }
+html.copilot .list .item .dps .dpsContribution {
+  min-width: 52px;
+  font-variation-settings: normal;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--copilot-text);
+}
+html.copilot .list .item.isUser .dps .dpsContribution { color: var(--copilot-accent); }
+
+/* Column labels over the rows; shown only once there are rows. */
+html.copilot .copilotCols {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 20px 0 48px;
+  font-family: var(--hud-ident);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--copilot-sub);
+}
+html.copilot .meter:has(> .list.hasRows) .copilotCols { display: flex; }
+html.copilot .copilotCols .colName { flex: 1 1 auto; }
+html.copilot .copilotCols .colCp { width: 64px; text-align: center; }
+html.copilot .copilotCols .colDmg { width: 62px; text-align: right; margin-left: 4px; }
+html.copilot .copilotCols .colHeal { width: 60px; text-align: right; }
+html.copilot .copilotCols .colPct { width: 52px; text-align: right; }
+html:not(.copilot) .copilotCols { display: none; }
+/* Only the meter window has the column labels (History, Details and Settings share the page). */
+html.copilot:not([data-a2view="main"]) .copilotCols { display: none !important; }
+
+/* Content tabs over the meter's target modes (replace the footer's mode button). */
+html.copilot .copilotTabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 12px 6px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+}
+html.copilot .copilotTab {
+  flex: 1 1 0;
+  height: 24px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--copilot-sub);
+  font-family: var(--hud-ident);
+  font-size: 12px;
+  cursor: pointer;
+}
+html.copilot .copilotTab:hover { color: var(--copilot-text); background: rgba(255, 255, 255, 0.05); }
+html.copilot .copilotTab.isActive { color: var(--copilot-text); background: rgba(255, 255, 255, 0.12); font-weight: 600; }
+html.copilot .footerBtns .targetModeBtn { display: none; }
+html.copilot:not([data-a2view="main"]) .copilotTabs { display: none; }
+html.copilot .copilotAuto {
+  flex: 0 0 auto;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid rgba(190, 225, 245, 0.18);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--copilot-sub);
+  font-family: var(--hud-tech);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+html.copilot .copilotAuto.isActive { color: #0e1318; background: var(--copilot-accent); border-color: var(--copilot-accent); font-weight: 600; }
+
+/* Outside your party on a world boss: a floor, not their total. */
+html.copilot .list .item.isPartial .name { opacity: 0.72; }
+html.copilot .list .item.isPartial .dps .dmgTotal::before { content: "≥ "; color: var(--sub, #8aa0ad); font-weight: 400; }
+
+/* What Auto recognised: world boss, expedition, training, PvP… */
+html.copilot .copilotAuto { display: inline-flex; align-items: center; gap: 0; max-width: 168px; white-space: nowrap; overflow: hidden; }
+html.copilot .copilotContext { overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+html.copilot .copilotContext:not(:empty)::before { content: "·"; margin: 0 5px; opacity: 0.6; }
+html.copilot .copilotAuto[data-kind="pvp"] .copilotContext { color: #ff8f8f; }
+html.copilot .copilotAuto.isActive[data-kind="pvp"] .copilotContext { color: #6a1010; }
+
+/* ---------- header: metric · your DPS · clock ---------- */
+html.copilot .header .bossIcon { display: none; }
+html.copilot .copilotMetric { position: relative; display: inline-flex; align-items: center; gap: 2px; flex: 0 0 auto; }
+html.copilot .cmStep { width: 20px; height: 24px; border: 0; border-radius: 6px; background: transparent; color: var(--copilot-sub); font-size: 17px; line-height: 1; cursor: pointer; }
+html.copilot .cmStep:hover { color: var(--copilot-text); background: rgba(255, 255, 255, 0.07); }
+html.copilot .cmCurrent { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 6px; border: 0; border-radius: 6px; background: transparent; color: var(--copilot-accent); font-family: var(--hud-ident); font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+html.copilot .cmCurrent:hover { background: rgba(143, 211, 255, 0.1); }
+html.copilot .cmMenu { position: absolute; top: 28px; left: 18px; z-index: 30; display: flex; flex-direction: column; min-width: 170px; padding: 4px; border-radius: 10px; border: 1px solid var(--copilot-edge); background: rgba(14, 19, 24, 0.97); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); }
+html.copilot .cmMenu button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 6px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--copilot-text); font-family: var(--hud-ident); font-size: 13px; text-align: left; cursor: pointer; }
+html.copilot .cmMenu button small { font-size: 10.5px; color: var(--copilot-sub); }
+html.copilot .cmMenu button:hover { background: rgba(255, 255, 255, 0.07); }
+html.copilot .cmMenu button[aria-checked="true"] { color: var(--copilot-accent); }
+html.copilot .copilotMyDps { flex: 0 0 auto; height: 22px; padding: 0 9px; border: 1px solid var(--copilot-edge); border-radius: 999px; background: transparent; color: var(--copilot-sub); font-family: var(--hud-ident); font-size: 11px; white-space: nowrap; cursor: pointer; }
+html.copilot .copilotMyDps b { margin-left: 3px; color: var(--copilot-text); font-family: var(--hud-tech, monospace); font-weight: 600; }
+html.copilot .copilotClock { margin-left: auto; font-family: var(--hud-tech, monospace); font-size: 12px; color: var(--copilot-sub); white-space: nowrap; }
+html.copilot:not([data-a2view="main"]) .copilotMetric,
+html.copilot:not([data-a2view="main"]) .copilotMyDps,
+html.copilot:not([data-a2view="main"]) .copilotClock,
+html.copilot:not([data-a2view="main"]) .copilotHist,
+html.copilot:not([data-a2view="main"]) .copilotEmpty { display: none !important; }
+html.copilot .footerBtns .metricToggleBtn { display: none; }
+html.copilot .header .headerBtns .historyBtn,
+html.copilot .header .headerBtns .resetBtn { display: none; }
+
+/* The target, on its own line under the header. */
+html.copilot .copilotTarget { display: flex; align-items: center; min-width: 0; margin: -2px 14px 4px; }
+html.copilot .copilotTarget .bossNames { min-width: 0; }
+html.copilot .copilotTarget .bossName { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--copilot-sub); font-weight: 600; }
+html.copilot:not([data-a2view="main"]) .copilotTarget { display: none; }
+
+/* Content tabs: compact, with the tools at the right. */
+html.copilot .copilotTabs { align-items: center; }
+html.copilot .copilotTab { flex: 0 0 auto; padding: 0 8px; font-size: 11.5px; }
+html.copilot .copilotAuto { max-width: 150px; }
+html.copilot .copilotTools { display: inline-flex; align-items: center; gap: 3px; margin-left: auto; }
+html.copilot .copilotToolBtn { display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 7px; border: 0; border-radius: 7px; background: rgba(255, 255, 255, 0.06); color: var(--copilot-text); font-family: var(--hud-ident); font-size: 11px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+html.copilot .copilotToolBtn:hover { background: rgba(255, 255, 255, 0.13); }
+html.copilot .copilotHistBtn[aria-expanded="true"] { background: rgba(143, 211, 255, 0.2); color: var(--copilot-accent); }
+
+/* History, inside the overlay. */
+html.copilot .copilotHist { margin: 0 12px 6px; padding: 6px; border-radius: 10px; border: 1px solid var(--copilot-edge); background: rgba(10, 14, 18, 0.72); }
+html.copilot .chTabs { display: flex; gap: 3px; padding: 2px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); }
+html.copilot .chTab { flex: 1 1 0; height: 24px; border: 0; border-radius: 6px; background: transparent; color: var(--copilot-sub); font-family: var(--hud-ident); font-size: 12px; cursor: pointer; }
+html.copilot .chTab.isActive { background: rgba(255, 255, 255, 0.12); color: var(--copilot-text); font-weight: 600; }
+html.copilot .chList { list-style: none; margin: 6px 0 0; padding: 0; max-height: 168px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+html.copilot .chList li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 8px; border-radius: 7px; font-size: 12px; }
+html.copilot .chList li.isLink { cursor: pointer; }
+html.copilot .chList li.isLink:hover { background: rgba(143, 211, 255, 0.08); }
+html.copilot .chMain { display: flex; flex-direction: column; min-width: 0; }
+html.copilot .chMain b { font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+html.copilot .chMain small { font-size: 10.5px; color: var(--copilot-sub); }
+html.copilot .chRight { font-family: var(--hud-tech, monospace); font-size: 12px; white-space: nowrap; }
+html.copilot .chList li.chEmpty { color: var(--copilot-sub); line-height: 1.45; }
+html.copilot .chAll { display: block; margin: 4px 0 0 auto; padding: 2px 6px; border: 0; background: none; color: var(--copilot-accent); font-size: 11px; cursor: pointer; }
+
+/* What an empty view is waiting for. */
+html.copilot .copilotEmpty { margin: 6px 14px 10px; color: var(--copilot-sub); font-size: 12px; line-height: 1.5; }
+
+/* Cura: the heal column leads. */
+html.copilot[data-copilot-metric="totalHeal"] .list .item .dps .healTotal { color: var(--copilot-heal); font-weight: 700; }
+html.copilot[data-copilot-metric="totalHeal"] .list .item .dps .dmgTotal { opacity: 0.6; font-weight: 400; }
+
+/* Fit the tabs and the tools on one line at the meter's width. */
+html.copilot .copilotTabs { gap: 2px; margin: 0 10px 6px; padding: 3px; }
+html.copilot .copilotTab { padding: 0 6px; font-size: 11px; }
+html.copilot .copilotAuto { max-width: 128px; padding: 0 7px; }
+html.copilot .copilotTools { gap: 2px; padding-left: 4px; }
+html.copilot .copilotToolBtn { padding: 0 6px; font-size: 10.5px; }
+html.copilot .copilotTarget:has(.bossName:empty) { display: none; }
+html.copilot .copilotTabs { min-width: 0; overflow: hidden; }
+html.copilot .copilotTab,
+html.copilot .copilotAuto { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.copilot .copilotTools { flex: 0 0 auto; }
+html.copilot .cmMenu[hidden],
+html.copilot .copilotHist[hidden],
+html.copilot .copilotEmpty[hidden] { display: none !important; }
+html.copilot .meter { width: 500px; }
+
+/* One pick for the view; the four tabs stay as its source. */
+html.copilot .copilotTabs .copilotTab { display: none; }
+html.copilot .copilotAuto { max-width: 200px; flex: 0 1 auto; }
+html.copilot .copilotViewPick { position: relative; flex: 0 0 auto; }
+html.copilot .copilotViewBtn { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 9px; border: 0; border-radius: 8px; background: rgba(255, 255, 255, 0.12); color: var(--copilot-text); font-family: var(--hud-ident); font-size: 11.5px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+html.copilot .copilotViewBtn:hover { background: rgba(255, 255, 255, 0.18); }
+html.copilot .cvMenu { position: absolute; top: 28px; left: 0; z-index: 30; display: flex; flex-direction: column; min-width: 220px; padding: 4px; border-radius: 10px; border: 1px solid var(--copilot-edge); background: rgba(14, 19, 24, 0.97); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); }
+html.copilot .cvMenu[hidden] { display: none !important; }
+html.copilot .cvMenu button { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 6px 10px; border: 0; border-radius: 7px; background: transparent; color: var(--copilot-text); font-family: var(--hud-ident); font-size: 13px; text-align: left; cursor: pointer; }
+html.copilot .cvMenu button small { font-size: 10.5px; color: var(--copilot-sub); }
+html.copilot .cvMenu button:hover { background: rgba(255, 255, 255, 0.07); }
+
+/* Hover card: the player's skills, every one, with crits, hits and share. */
+html.copilot .hoverDetailsTooltip.copilotCard { width: 340px; max-width: 340px; padding: 10px 10px 8px; border-radius: 12px; border: 1px solid var(--copilot-edge); background: rgba(12, 17, 21, 0.96); color: var(--copilot-text); font-family: var(--hud-ident); box-shadow: 0 12px 34px rgba(0, 0, 0, 0.5); }
+html.copilot .copilotCard .ctHead { display: flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 600; color: var(--copilot-accent); }
+html.copilot .copilotCard .ctIcon { width: 20px; height: 20px; object-fit: contain; }
+html.copilot .copilotCard .ctNums { display: grid; grid-template-columns: 1.4fr 1fr 1fr; align-items: end; gap: 8px; margin: 6px 0 8px; }
+html.copilot .copilotCard .ctNums div { display: flex; flex-direction: column; gap: 1px; text-align: right; }
+html.copilot .copilotCard .ctNums .ctDps { text-align: left; }
+html.copilot .copilotCard .ctNums small { font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--copilot-sub); }
+html.copilot .copilotCard .ctNums b { font-family: var(--hud-tech, monospace); font-size: 14px; }
+html.copilot .copilotCard .ctNums .ctDps b { font-size: 22px; }
+html.copilot .copilotCard .ctTable { max-height: 260px; overflow-y: auto; }
+html.copilot .copilotCard table { width: 100%; border-collapse: separate; border-spacing: 0 2px; font-size: 11.5px; }
+html.copilot .copilotCard th { position: sticky; top: 0; padding: 2px 4px; background: rgba(12, 17, 21, 0.98); font-size: 9px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: var(--copilot-sub); text-align: right; }
+html.copilot .copilotCard th:nth-child(2) { text-align: left; }
+html.copilot .copilotCard td { padding: 3px 4px; white-space: nowrap; }
+html.copilot .copilotCard tbody tr { background: linear-gradient(90deg, rgba(143, 211, 255, 0.16) var(--share), rgba(255, 255, 255, 0.03) var(--share)); }
+html.copilot .copilotCard td.i { width: 14px; color: var(--copilot-sub); font-size: 10px; text-align: right; border-radius: 6px 0 0 6px; }
+html.copilot .copilotCard td.n { display: flex; align-items: center; gap: 5px; max-width: 132px; overflow: hidden; }
+html.copilot .copilotCard td.n span { overflow: hidden; text-overflow: ellipsis; }
+html.copilot .copilotCard td.n .skillIcon { width: 16px; height: 16px; border-radius: 3px; flex: 0 0 auto; }
+html.copilot .copilotCard td.v { text-align: right; font-family: var(--hud-tech, monospace); }
+html.copilot .copilotCard td.v:last-child { border-radius: 0 6px 6px 0; }
+html.copilot .copilotCard td.c { color: #ffc478; }
+html.copilot .copilotCard .ctEmpty { color: var(--copilot-sub); text-align: center; }
+html.copilot .copilotCard .ctFoot { margin-top: 4px; font-size: 10.5px; color: var(--copilot-sub); }
+html.copilot .copilotCard .ctTable { overflow-x: hidden; }
+html.copilot .copilotCard table { table-layout: fixed; }
+html.copilot .copilotCard th:nth-child(1) { width: 14px; }
+html.copilot .copilotCard th:nth-child(3) { width: 44px; }
+html.copilot .copilotCard th:nth-child(4) { width: 50px; }
+html.copilot .copilotCard th:nth-child(5) { width: 42px; }
+html.copilot .copilotCard th:nth-child(6) { width: 46px; }
+html.copilot .copilotCard td.n { display: table-cell; max-width: none; overflow: hidden; text-overflow: ellipsis; }
+html.copilot .copilotCard td.n .skillIcon { vertical-align: -3px; margin-right: 5px; }
+html.copilot .hoverDetailsTooltip.copilotCard { width: 390px; max-width: 390px; }
+
+/* ---------- PvP board ---------- */
+html.copilot .copilotPvp[hidden] { display: none !important; }
+html.copilot.copilotPvpOn[data-a2view="main"] .list,
+html.copilot.copilotPvpOn[data-a2view="main"] .copilotCols,
+html.copilot.copilotPvpOn[data-a2view="main"] .bossHpBar,
+html.copilot.copilotPvpOn[data-a2view="main"] .copilotEmpty,
+html.copilot.copilotPvpOn[data-a2view="main"] .copilotTarget { display: none !important; }
+html.copilot:not([data-a2view="main"]) .copilotPvp { display: none !important; }
+html.copilot .copilotPvp { margin: 0 12px 8px; }
+html.copilot .cpHead { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 6px; }
+html.copilot .cpZone { font-weight: 600; font-size: 13px; }
+html.copilot .cpMeta { display: inline-flex; align-items: baseline; gap: 3px; font-family: var(--hud-tech, monospace); font-size: 12px; color: var(--copilot-sub); }
+html.copilot .cpMeta .cpTime { margin-right: 8px; }
+html.copilot .cpMeta b { font-size: 13px; }
+html.copilot .cpMeta .cpK { color: var(--copilot-heal); }
+html.copilot .cpMeta .cpD { color: var(--copilot-death); margin-left: 6px; }
+html.copilot .cpMeta small { font-size: 9.5px; }
+html.copilot .cpRow { display: grid; grid-template-columns: 16px 22px minmax(0, 1fr) auto auto 64px 54px; align-items: center; gap: 6px; }
+html.copilot .cpCols { display: grid; grid-template-columns: minmax(0, 1fr) 64px 54px; gap: 6px; padding: 0 8px 2px 52px; font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--copilot-sub); }
+html.copilot .cpCols span:not(:first-child) { text-align: right; }
+html.copilot .cpSide { margin: 6px 2px 3px; font-size: 9.5px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+html.copilot .cpSide.ours { color: var(--copilot-heal); }
+html.copilot .cpSide.theirs { color: var(--copilot-death); }
+html.copilot .cpRow { height: 30px; margin-bottom: 3px; padding: 0 8px; border-radius: 9px; font-size: 13px; background: linear-gradient(90deg, var(--cp-fill) var(--share), rgba(255, 255, 255, 0.04) var(--share)); }
+html.copilot .cpRow.ours { --cp-fill: rgba(143, 224, 168, 0.18); }
+html.copilot .cpRow.theirs { --cp-fill: rgba(255, 143, 143, 0.18); }
+html.copilot .cpRow.isYou { box-shadow: inset 0 0 0 1px rgba(143, 211, 255, 0.55); }
+html.copilot .cpRow img { width: 20px; height: 20px; object-fit: contain; }
+html.copilot .cpRank { font-size: 11px; color: var(--copilot-sub); text-align: right; }
+html.copilot .cpName { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 600; }
+html.copilot .cpCp { padding: 1px 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); font-family: var(--hud-tech, monospace); font-size: 10.5px; color: #c9dbe5; white-space: nowrap; }
+html.copilot .cpCp.isGs { opacity: 0.75; }
+html.copilot .cpDeaths { display: inline-flex; align-items: center; gap: 2px; color: var(--copilot-death); font-size: 11px; }
+html.copilot .cpDmg, html.copilot .cpPct { text-align: right; font-family: var(--hud-tech, monospace); font-weight: 600; }
+html.copilot .cpPct { color: var(--copilot-sub); font-weight: 400; }
+html.copilot .cpBar { height: 4px; margin: 8px 2px 6px; border-radius: 2px; background: rgba(255, 143, 143, 0.7); overflow: hidden; }
+html.copilot .cpBar span { display: block; height: 100%; width: var(--ours); background: var(--copilot-heal); }
+html.copilot .cpTotals { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; font-size: 12px; }
+html.copilot .cpTotals .ours { color: var(--copilot-heal); }
+html.copilot .cpTotals .theirs { color: var(--copilot-death); }
+html.copilot .cpTotals b { text-align: right; font-family: var(--hud-tech, monospace); }
+html.copilot .cpEmpty { margin: 4px 2px; color: var(--copilot-sub); font-size: 12px; }
+
+/* Combat power as the game shows it: crossed swords, in its teal blue. */
+html.copilot { --copilot-cp: #5fd6ec; }
+html.copilot .list .item .combatPower:not(:empty),
+html.copilot .cpCp:not(.isGs),
+html.copilot .cpGame { display: inline-flex; align-items: center; gap: 4px; color: var(--copilot-cp) !important; font-weight: 700 !important; background: rgba(95, 214, 236, 0.1) !important; }
+html.copilot .list .item .combatPower:not(:empty)::before,
+html.copilot .cpCp:not(.isGs)::before,
+html.copilot .cpGame::before { content: ""; flex: 0 0 auto; width: 12px; height: 12px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 17.5L3 6V3h3l11.5 11.5'/%3E%3Cpath d='M13 19l6-6'/%3E%3Cpath d='M16 16l4 4'/%3E%3Cpath d='M19 21l2-2'/%3E%3Cpath d='M14.5 6.5L18 3h3v3l-3.5 3.5'/%3E%3Cpath d='M5 14l4 4'/%3E%3Cpath d='M7 17l-3 3'/%3E%3Cpath d='M3 19l2 2'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 17.5L3 6V3h3l11.5 11.5'/%3E%3Cpath d='M13 19l6-6'/%3E%3Cpath d='M16 16l4 4'/%3E%3Cpath d='M19 21l2-2'/%3E%3Cpath d='M14.5 6.5L18 3h3v3l-3.5 3.5'/%3E%3Cpath d='M5 14l4 4'/%3E%3Cpath d='M7 17l-3 3'/%3E%3Cpath d='M3 19l2 2'/%3E%3C/svg%3E") center / contain no-repeat; }
+html.copilot .cpGame { background: none !important; }
+
+/* Settings for users: the meter's technical settings only in developer mode. */
+html.copilotUserSettings .copilotDevOnly { display: none !important; }

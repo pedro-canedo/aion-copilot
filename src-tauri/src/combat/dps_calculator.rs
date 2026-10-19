@@ -21,6 +21,13 @@ const OTHERS_ROW_ID: i32 = PARTY_ROW_ID_BASE - 1;
 /// A death this long after a fight's last hit still belongs to it: in a
 /// wipe the last of the party can fall after the boss's last damage.
 const DEATH_GRACE_MS: i64 = 5_000;
+/// aion-copilot: on a world boss, how many players outside your party keep a
+/// row of their own (the biggest damage), beside you and your party.
+const WORLD_BOSS_TOP_STRANGERS: usize = 4;
+/// aion-copilot: an open-world target this big ...
+const CROWD_MIN_MAX_HP: i64 = 2_000_000;
+/// ... that lost this much more than the hits seen is a crowd's boss.
+const CROWD_MIN_UNSEEN: f64 = 1_000_000.0;
 
 /// The local player's ids (theirs and their summons'), the party's names,
 /// and what resolves an actor to a name: what `DpsCalculator::fight_is_ours`
@@ -85,6 +92,12 @@ pub struct DpsCalculator {
     /// its HP when this meter first saw the fight, the start of what Others
     /// counts (`world_boss_rows`).
     world_boss_start: Option<(i32, i64, i64)>,
+    /// aion-copilot: open-world targets a crowd is on (they lost far more HP
+    /// than the hits this meter sees), shown like a field boss.
+    crowd_targets: HashSet<i32>,
+    /// aion-copilot: each target's HP at the first look plus what was tracked
+    /// then: where its Others row starts counting.
+    first_look_hp: HashMap<(i32, i64), i64>,
     target_selection_mode: TargetSelectionMode,
     last_known_local_id: Option<i64>,
     all_targets_window_ms: i64,
@@ -115,6 +128,8 @@ impl DpsCalculator {
             last_names_gen: 0,
             last_party_rows: false,
             world_boss_start: None,
+            crowd_targets: HashSet::new(),
+            first_look_hp: HashMap::new(),
             target_selection_mode: TargetSelectionMode::BossTargets,
             last_known_local_id: None,
             all_targets_window_ms: 120_000,
@@ -541,6 +556,28 @@ impl DpsCalculator {
             entry.hps = heal as f64 / bt as f64 * 1000.0;
         }
 
+        // Deaths and revives per player in this fight window (aion-copilot).
+        if fight_end > 0 {
+            let known_players = self.data_storage.get_known_player_ids();
+            for (actor_id, _, revived) in self.data_storage.deaths_between(fight_start, fight_end + DEATH_GRACE_MS) {
+                // A spirit or other summon going away is not its owner dying:
+                // only a player's own death counts.
+                if summon_data.contains_key(&actor_id)
+                    || !(known_players.contains(&actor_id) || nickname_data.contains_key(&actor_id))
+                {
+                    continue;
+                }
+                let nickname = resolve_nickname(actor_id, &nickname_data, &summon_data);
+                let uid = *canonical.get(&nickname).unwrap_or(&actor_id);
+                if let Some(entry) = dps_data.map.get_mut(&uid) {
+                    entry.deaths += 1;
+                    if revived.is_some() {
+                        entry.revives += 1;
+                    }
+                }
+            }
+        }
+
         // Filter and compute DPS
         let party_members = self.data_storage.get_party_members();
         let mut to_remove = Vec::new();
@@ -548,7 +585,9 @@ impl DpsCalculator {
             // Combat power joins on the character name: the roster carries an
             // account-level dbid, not the session entity id keyed here.
             let member = party_members.get(&data.nickname);
-            data.combat_power = member.map(|m| m.combat_power).unwrap_or(0);
+            data.combat_power = member.map(|m| m.combat_power).filter(|&cp| cp > 0)
+                .or_else(|| self.data_storage.known_combat_power(&data.nickname))
+                .unwrap_or(0);
             data.gear_score = member.map(|m| m.gear_score).unwrap_or(0);
             if data.job.is_empty() {
                 if local_ids.as_ref().is_some_and(|ids| ids.contains(&uid))
@@ -616,26 +655,58 @@ impl DpsCalculator {
         battle_time_ms: i64,
     ) -> Option<f64> {
         let target = self.current_target;
-        let code = (target != 0).then(|| self.data_storage.mob_code(target)).flatten()?;
+        if target == 0 {
+            return None;
+        }
+        let code = self.data_storage.mob_code(target);
         // In an instance everyone there is your party, and before the meter
         // knows who you are it cannot tell who is yours.
-        if !crate::capture::field_bosses::is_field_boss(code)
-            || self.data_storage.current_dungeon_id() != 0
-            || local_ids.is_none()
-        {
+        if self.data_storage.current_dungeon_id() != 0 || local_ids.is_none() {
+            return None;
+        }
+        // aion-copilot: a boss whose spawn this meter missed (no NPC code) or
+        // that is no listed field boss is one too when a crowd is on it: it
+        // lost far more HP than the hits seen here.
+        let first_hit = combat_data.get(&target).map(|t| t.first_damage_time).unwrap_or(0);
+        if current_hp >= 0 {
+            if self.first_look_hp.len() > 256 {
+                self.first_look_hp.clear();
+            }
+            self.first_look_hp.entry((target, first_hit)).or_insert(current_hp + tracked as i64);
+        }
+        let max_hp = self.data_storage.get_mob_hp(target).unwrap_or(0) as i64;
+        if current_hp >= 0 && max_hp >= CROWD_MIN_MAX_HP {
+            let lost = (max_hp - current_hp) as f64;
+            if lost > tracked * 2.0 && lost - tracked > CROWD_MIN_UNSEEN {
+                self.crowd_targets.insert(target);
+            }
+        }
+        if !code.is_some_and(crate::capture::field_bosses::is_field_boss) && !self.crowd_targets.contains(&target) {
             return None;
         }
         let local_name = self.data_storage.local_character_name();
-        dps_data.map.retain(|uid, d| {
+        let is_ours = |uid: &i32, d: &PersonalData| {
             let name = d.nickname.trim();
             local_ids.as_ref().is_some_and(|ids| ids.contains(uid))
                 || local_name.as_deref().is_some_and(|n| n.trim() == name)
                 || party.contains_key(name)
-        });
+        };
+        // aion-copilot: the top damage dealers outside your party stay listed
+        // by name; Others is what remains of the HP the boss lost.
+        let mut strangers: Vec<(i32, f64)> = dps_data.map.iter()
+            .filter(|(uid, d)| !is_ours(uid, d) && d.amount > 0.0)
+            .map(|(&uid, d)| (uid, d.amount))
+            .collect();
+        strangers.sort_by(|a, b| b.1.total_cmp(&a.1));
+        let top: HashSet<i32> = strangers.iter().take(WORLD_BOSS_TOP_STRANGERS).map(|(uid, _)| *uid).collect();
+        let unlisted = strangers.len().saturating_sub(top.len()) as u32;
+        dps_data.map.retain(|uid, d| is_ours(uid, d) || top.contains(uid));
+        for (uid, d) in dps_data.map.iter_mut() {
+            d.partial = top.contains(uid);
+        }
         let listed: f64 = dps_data.map.values().map(|d| d.amount).sum();
 
         let hp_now = if self.data_storage.is_entity_dead(target) { 0 } else { current_hp };
-        let first_hit = combat_data.get(&target).map(|t| t.first_damage_time).unwrap_or(0);
         let mut others = 0.0;
         if hp_now >= 0 {
             // The first look at a fight takes its HP then, plus what was
@@ -644,7 +715,7 @@ impl DpsCalculator {
             let start = match self.world_boss_start {
                 Some((t, at, hp)) if t == target && at == first_hit => hp,
                 _ => {
-                    let hp = hp_now + tracked as i64;
+                    let hp = self.first_look_hp.get(&(target, first_hit)).copied().unwrap_or(hp_now + tracked as i64);
                     self.world_boss_start = Some((target, first_hit, hp));
                     hp
                 }
@@ -655,6 +726,7 @@ impl DpsCalculator {
             let mut row = PersonalData::new("Others".to_string());
             row.is_others = true;
             row.amount = others;
+            row.others_count = unlisted;
             dps_data.map.insert(OTHERS_ROW_ID, row);
         }
         let total = listed + others;
@@ -1053,6 +1125,8 @@ impl DpsCalculator {
         let now_ms = crate::clock::now_ms();
 
         let mut records = Vec::new();
+        // aion-copilot: fights against players are kept too (History's PvP).
+        let pvp_targets = self.data_storage.pvp_target_ids();
 
         let boss_target_ids: Vec<i32> = combat_data.keys()
             .filter(|&&tid| {
@@ -1064,7 +1138,7 @@ impl DpsCalculator {
                 if let Some(&code) = mob_data.get(&tid) {
                     self.npc_lookup.is_boss(code) || self.npc_lookup.is_training_dummy(code)
                 } else {
-                    false
+                    pvp_targets.contains(&tid)
                 }
             })
             .cloned()
@@ -1081,7 +1155,10 @@ impl DpsCalculator {
             };
 
             let battle_time = (target_data.last_damage_time - target_data.first_damage_time).max(0);
-            if battle_time < 5_000 || target_data.total_damage <= 0 {
+            let is_pvp = pvp_targets.contains(&target_id) && !mob_data.contains_key(&target_id);
+            // A PvP fight can be a few blows long.
+            let min_time = if is_pvp { 1_000 } else { 5_000 };
+            if battle_time < min_time || target_data.total_damage <= 0 {
                 continue;
             }
             if !self.is_our_fight(target_data) {
@@ -1178,7 +1255,11 @@ impl DpsCalculator {
                 .collect();
 
             let mob_code = mob_data.get(&target_id).copied().unwrap_or(0);
-            let boss_name = self.resolve_target_name(target_id);
+            let boss_name = if is_pvp {
+                nickname_data.get(&target_id).cloned().unwrap_or_else(|| self.resolve_target_name(target_id))
+            } else {
+                self.resolve_target_name(target_id)
+            };
 
             let job_ids: Vec<i32> = actors.iter()
                 .filter(|a| a.job_id > 0)
@@ -1220,6 +1301,7 @@ impl DpsCalculator {
                 dungeon_id: fight_dungeon(&self.npc_lookup, mob_code, roster_dungeon),
                 server_id: self.data_storage.fight_server_id(),
                 buffs: Some(buffs),
+                is_pvp,
             };
 
             if is_ended {
@@ -1785,7 +1867,7 @@ impl DpsCalculator {
             .data_storage
             .deaths_between(target_data.first_damage_time, target_data.last_damage_time + DEATH_GRACE_MS)
             .into_iter()
-            .filter(|(id, _, _)| known_players.contains(id) || nickname_data.contains_key(id))
+            .filter(|(id, _, _)| !summon_data.contains_key(id) && (known_players.contains(id) || nickname_data.contains_key(id)))
             .map(|(id, t, revived)| {
                 let uid = *orphan_to_owner.get(&id).unwrap_or(&id);
                 let uid = *canonical.get(&resolve_nickname(uid, &nickname_data, &summon_data)).unwrap_or(&uid);
@@ -1990,6 +2072,119 @@ mod tests {
         ]);
         // A summary carries none, so its count reads as unknown, not 0.
         assert!(meter(&storage).get_hover_details(50_000, None).deaths.is_none());
+    }
+
+    #[test]
+    fn a_zero_hp_that_is_back_within_moments_is_not_a_death() {
+        let storage = Arc::new(DataStorage::new());
+        storage.set_local_player_id(Some(2259));
+        storage.append_nickname(2259, "Naicha");
+        storage.append_damage(hit(2259, 50_000, 1_000));
+        storage.append_damage(hit(2259, 50_000, 9_000));
+        let at = |ms| crate::clock::set_override(Some(ms));
+        at(2_000);
+        storage.note_hp(2259, 5_000);
+        at(3_000);
+        storage.note_hp(2259, 0); // a misread...
+        at(3_200);
+        storage.note_hp(2259, 5_000); // ...gone 200 ms later
+        crate::clock::set_override(None);
+        let mut calc = meter(&storage);
+        calc.set_target_selection_mode("allTargets");
+        let rows = calc.get_dps().map;
+        assert_eq!((rows[&2259].deaths, rows[&2259].revives), (0, 0));
+    }
+
+    #[test]
+    fn a_player_who_keeps_hitting_after_a_zero_hp_did_not_die() {
+        let storage = Arc::new(DataStorage::new());
+        storage.set_local_player_id(Some(2259));
+        storage.append_nickname(2259, "Naicha");
+        storage.append_damage(hit(2259, 50_000, 1_000));
+        let at = |ms| crate::clock::set_override(Some(ms));
+        at(2_000);
+        storage.note_hp(2259, 5_000);
+        at(3_000);
+        storage.note_hp(2259, 0); // a misread, and no HP reading after it...
+        crate::clock::set_override(None);
+        storage.append_damage(hit(2259, 50_000, 4_000)); // ...but they hit again
+        let mut calc = meter(&storage);
+        calc.set_target_selection_mode("allTargets");
+        assert_eq!(calc.get_dps().map[&2259].deaths, 0);
+    }
+
+    #[test]
+    fn an_hp_of_zero_back_at_the_same_hp_within_seconds_is_no_death() {
+        let storage = Arc::new(DataStorage::new());
+        crate::clock::set_override(Some(10_000));
+        storage.note_hp(832, 16_419);
+        storage.note_hp(832, 0);
+        crate::clock::set_override(Some(13_900));
+        storage.note_hp(832, 16_419); // full again 3.9 s later: a misread
+        assert!(storage.deaths_between(0, 20_000).is_empty());
+        // You read 0 and come back a little lower (you are taking hits),
+        // then strike 2 s later: no death either.
+        storage.set_local_player_id(Some(11_652));
+        storage.note_hp(11_652, 18_493);
+        storage.note_hp(11_652, 0);
+        crate::clock::set_override(Some(16_000));
+        storage.note_hp(11_652, 17_200);
+        crate::clock::set_override(Some(18_000));
+        storage.append_damage(hit(11_652, 56_965, 18_000));
+        assert!(storage.deaths_between(0, 20_000).is_empty(), "the dead do not attack");
+        storage.note_hp(832, 0);
+        crate::clock::set_override(Some(30_000));
+        storage.note_hp(832, 16_419); // back after 16 s: a death and a revive
+        assert_eq!(storage.deaths_between(0, 40_000).len(), 1);
+        crate::clock::set_override(None);
+    }
+
+    #[test]
+    fn rows_count_each_players_deaths_and_revives_in_the_fight() {
+        let storage = Arc::new(DataStorage::new());
+        storage.set_local_player_id(Some(2259));
+        storage.append_nickname(2259, "Naicha");
+        storage.append_nickname(2260, "Faffy");
+        storage.append_damage(hit(2259, 50_000, 1_000));
+        storage.append_damage(hit(2260, 50_000, 9_000));
+        let at = |ms| crate::clock::set_override(Some(ms));
+        at(2_000);
+        storage.note_hp(2259, 5_000);
+        storage.note_hp(2260, 5_000);
+        at(4_000);
+        storage.note_hp(2259, 0);
+        at(6_000);
+        storage.note_hp(2259, 2_500);
+        at(8_500);
+        storage.note_hp(2260, 0);
+        at(60_000);
+        storage.note_hp(2259, 0); // another fight's
+        crate::clock::set_override(None);
+        let mut calc = meter(&storage);
+        calc.set_target_selection_mode("allTargets");
+        let rows = calc.get_dps().map;
+        assert_eq!((rows[&2259].deaths, rows[&2259].revives), (1, 1));
+        assert_eq!((rows[&2260].deaths, rows[&2260].revives), (1, 0));
+    }
+
+    #[test]
+    fn a_summon_going_away_is_not_its_owners_death() {
+        // A sorcerer's spirits come and go at a training dummy (Ruína: 7 in
+        // two minutes, each one a skull on her row; 2026-10-18).
+        let storage = Arc::new(DataStorage::new());
+        storage.set_local_player_id(Some(2259));
+        storage.append_nickname(2259, "ELLAO");
+        storage.append_summon(2259, 55_814);
+        storage.append_damage(hit(2259, 50_000, 1_000));
+        storage.append_damage(hit(55_814, 50_000, 2_000));
+        storage.append_damage(hit(2259, 50_000, 9_000));
+        crate::clock::set_override(Some(5_000));
+        storage.mark_entity_dead(55_814);
+        crate::clock::set_override(None);
+        let mut calc = meter(&storage);
+        calc.set_target_selection_mode("allTargets");
+        assert_eq!(calc.get_dps().map[&2259].deaths, 0);
+        assert!(calc.get_target_details(50_000, None).deaths.unwrap().is_empty());
     }
 
     #[test]
@@ -2291,13 +2486,15 @@ mod tests {
         assert_eq!(shown.target_id, 0);
         assert!(shown.map.is_empty());
 
-        // You join in: the boss is yours. Strangers are no rows on an
-        // open-world boss: the server sends little of theirs (#55), and they
-        // are in Others, from the boss's HP (none read here, so no row).
+        // You join in: the boss is yours. aion-copilot: the biggest strangers
+        // stay listed, marked partial (the server sends little of theirs, #55).
         storage.append_damage(hit(7983, 44_090, 3_000));
         let shown = calc.get_dps();
         assert_eq!(shown.target_id, 44_090);
-        assert_eq!(shown.map.keys().copied().collect::<Vec<_>>(), vec![7983]);
+        let mut ids: Vec<i32> = shown.map.keys().copied().collect();
+        ids.sort_unstable();
+        assert_eq!(ids, vec![2653, 7983, 13_179, 15_468]);
+        assert!(shown.map[&2653].partial && !shown.map[&7983].partial);
     }
 
     /// On an open-world boss the rows are you, your party and Others: what
@@ -2330,7 +2527,7 @@ mod tests {
         let shown = calc.get_dps();
         let mut ids: Vec<i32> = shown.map.keys().copied().collect();
         ids.sort_unstable();
-        assert_eq!(ids, vec![7983, 15_130, OTHERS_ROW_ID]);
+        assert_eq!(ids, vec![2653, 7983, 15_130, OTHERS_ROW_ID]);
         let others = &shown.map[&OTHERS_ROW_ID];
         assert!(others.is_others);
         let listed: f64 = shown.map.iter().filter(|(id, _)| **id != OTHERS_ROW_ID).map(|(_, d)| d.amount).sum();
@@ -2338,6 +2535,54 @@ mod tests {
         assert_eq!((listed + others.amount) as i64, lost, "the rows add up to what the boss lost");
         let share: f64 = shown.map.values().map(|d| d.damage_contribution).sum();
         assert!((share - 100.0).abs() < 0.01);
+    }
+
+    /// aion-copilot: a big open-world target whose spawn the meter missed (no
+    /// NPC code) is a crowd's boss once it has lost far more than the hits
+    /// seen: an Others row takes the rest, and you are no longer 100%.
+    #[test]
+    fn a_crowded_boss_without_a_code_gets_an_others_row() {
+        let storage = Arc::new(DataStorage::new());
+        storage.set_local_player_id(Some(7983));
+        let mut calc = meter(&storage);
+        calc.set_target_selection_mode("lastHitByMe");
+        storage.append_mob_hp(31_531, 21_000_000);
+        storage.set_mob_current_hp(31_531, 21_000_000);
+        storage.append_damage(hit(7983, 31_531, 1_000));
+        let first = calc.get_dps();
+        assert_eq!(first.target_id, 31_531);
+        assert!(!first.map.contains_key(&OTHERS_ROW_ID), "nothing lost beyond your hits yet");
+        // The crowd takes 9 million; you land one more hit.
+        storage.set_mob_current_hp(31_531, 12_000_000);
+        storage.append_damage(hit(7983, 31_531, 2_000));
+        let shown = calc.get_dps();
+        let others = shown.map.get(&OTHERS_ROW_ID).expect("an Others row");
+        assert!(others.amount > 8_000_000.0);
+        assert!(shown.map[&7983].damage_contribution < 1.0);
+    }
+
+    /// aion-copilot: on a world boss, only the four biggest strangers get a
+    /// row of their own; the rest are in Others.
+    #[test]
+    fn a_world_boss_lists_the_four_biggest_strangers() {
+        let storage = Arc::new(DataStorage::new());
+        storage.set_local_player_id(Some(7983));
+        let mut calc = boss_meter(&storage);
+        storage.set_mob_current_hp(44_090, 1_000_000);
+        storage.append_damage(hit(7983, 44_090, 1_000));
+        calc.get_dps();
+        // Stranger 3000+k lands k hits: 3005 the most, 3000 the fewest.
+        for k in 0..6 {
+            for n in 0..=k {
+                storage.append_damage(hit(3_000 + k, 44_090, 1_100 + (k * 10 + n) as i64));
+            }
+        }
+        storage.set_mob_current_hp(44_090, 400_000);
+        let shown = calc.get_dps();
+        let mut ids: Vec<i32> = shown.map.keys().copied().filter(|&id| id != OTHERS_ROW_ID).collect();
+        ids.sort_unstable();
+        assert_eq!(ids, vec![3_002, 3_003, 3_004, 3_005, 7983]);
+        assert_eq!(shown.map[&OTHERS_ROW_ID].others_count, 2, "the two strangers left out");
     }
 
     /// Someone joining between fights shows at once, not at the next hit:
@@ -2393,8 +2638,8 @@ mod tests {
         storage.append_damage(hit(2653, 44_090, 2_100));
         let shown = calc.get_dps();
         assert_eq!(shown.target_id, 44_090);
-        // Oppi's; the stranger beside them is in Others on a world boss.
-        assert!(shown.map.contains_key(&15_130) && !shown.map.contains_key(&2653));
+        // Oppi's; aion-copilot: the stranger beside them is listed, partial.
+        assert!(shown.map.contains_key(&15_130) && shown.map[&2653].partial);
     }
 
     /// Before the meter knows who you are, an open-world boss is no one's

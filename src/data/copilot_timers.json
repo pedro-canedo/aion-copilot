@@ -1,0 +1,71 @@
+{
+  "region": "Am. do Sul",
+  "source": "Horários de consenso da comunidade, servidores Global; os de Am. do Sul (UTC-3, sem horário de verão). Cada regra traz seu fuso (utcOffsetMin) e é convertida para o fuso do Windows na hora de mostrar.",
+  "rules": [
+    {
+      "id": "shugo-festa",
+      "name": "Shugo Festa",
+      "icon": "festa",
+      "recurrence": { "kind": "hourly", "minute": 0 },
+      "utcOffsetMin": -180,
+      "entryMin": 3,
+      "durationMin": 10,
+      "confidence": "high"
+    },
+    {
+      "id": "invasao-dimensional",
+      "name": "Invasão Dimensional",
+      "icon": "portal",
+      "recurrence": { "kind": "hourly", "minute": 30 },
+      "utcOffsetMin": -180,
+      "entryMin": 3,
+      "durationMin": 15,
+      "confidence": "high"
+    },
+    {
+      "id": "fenda-espaco-temporal",
+      "name": "Fenda Espaço-Temporal",
+      "icon": "rift",
+      "recurrence": { "kind": "everyHours", "every": 3, "anchorHour": 2, "minute": 0 },
+      "utcOffsetMin": -180,
+      "durationMin": 10,
+      "confidence": "medium"
+    },
+    {
+      "id": "vigilante-kairah",
+      "name": "Vigilante Kairah",
+      "icon": "eye",
+      "recurrence": { "kind": "everyHours", "every": 3, "anchorHour": 1, "minute": 0 },
+      "utcOffsetMin": -180,
+      "durationMin": 30,
+      "confidence": "medium"
+    },
+    {
+      "id": "cerco-artefatos",
+      "name": "Cerco de Artefatos",
+      "icon": "siege",
+      "recurrence": { "kind": "weekly", "days": [1, 4, 6], "hour": 21, "minute": 0 },
+      "utcOffsetMin": -180,
+      "durationMin": 30,
+      "confidence": "medium"
+    },
+    {
+      "id": "chefes-do-cerco",
+      "name": "Chefes do Cerco",
+      "icon": "crown",
+      "recurrence": { "kind": "weekly", "days": [1, 4, 6], "hour": 21, "minute": 30 },
+      "utcOffsetMin": -180,
+      "durationMin": 30,
+      "confidence": "medium"
+    },
+    {
+      "id": "senhor-guardiao-nahma",
+      "name": "Senhor Guardião Nahma",
+      "icon": "guardian",
+      "recurrence": { "kind": "weekly", "days": [0, 5], "hour": 21, "minute": 0 },
+      "utcOffsetMin": -180,
+      "durationMin": 30,
+      "confidence": "low"
+    }
+  ]
+}

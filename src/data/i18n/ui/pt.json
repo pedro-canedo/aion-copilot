@@ -1,6 +1,6 @@
 {
   "header": {
-    "title": "A2Tools DPS Meter",
+    "title": "aion-copilot",
     "display": {
       "dps": "DPS",
       "total": "DAN",
@@ -579,7 +579,11 @@
     "identifyingPlayer": "#{id}",
     "a2toolsUser": "Usa o A2Tools",
     "dpsSuffix": "/s",
-    "others": "Outros"
+    "others": "Outros",
+    "deaths": "Mortes",
+    "revives": "Ressuscitado",
+    "partial": "Só o dano contínuo deles chega até você: no mínimo isto",
+    "kills": "Abates"
   },
   "skills": {
     "fallback": "Habilidade {code}",
@@ -660,7 +664,7 @@
     "close": "Fechar"
   },
   "npcapPrompt": {
-    "ask": "O A2Tools DPS Meter precisa do Npcap para ler o tráfego de rede do jogo, e o Npcap está ausente ou não funciona.\n\nInstalar agora? O medidor baixa o instalador do Npcap em npcap.com e o abre. Quando o Npcap estiver instalado, o medidor começa a capturar sozinho.\n\nEscolha Não para instalá-lo você mesmo em https://npcap.com/#download",
+    "ask": "O aion-copilot precisa do Npcap para ler o tráfego de rede do jogo, e o Npcap está ausente ou não funciona.\n\nInstalar agora? O medidor baixa o instalador do Npcap em npcap.com e o abre. Quando o Npcap estiver instalado, o medidor começa a capturar sozinho.\n\nEscolha Não para instalá-lo você mesmo em https://npcap.com/#download",
     "downloadFailed": "Não foi possível baixar o instalador do Npcap ({error}).\n\nInstale-o você mesmo em https://npcap.com/#download e abra o medidor de novo.",
     "stillMissing": "O Npcap ainda não funciona. Se o instalador foi fechado antes de terminar, instale o Npcap em https://npcap.com/#download e abra o medidor de novo."
   },

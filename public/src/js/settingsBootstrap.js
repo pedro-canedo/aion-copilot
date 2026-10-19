@@ -4,6 +4,8 @@
   // styles.css drops Windows/macOS-only fonts from Linux stacks.
   if (/Linux/.test(globalThis.navigator?.userAgent || "")) document.documentElement.classList.add("linux");
   const view = window.__A2_VIEW__ || new URLSearchParams(window.location.search).get("view");
+  // aion-copilot: which window this is, for copilot.css (one index.html, many views).
+  if (document.documentElement.dataset) document.documentElement.dataset.a2view = view || "main";
   if (view !== "settings") return;
   // This window shares the source markup, but never uses the combat panels or
   // meter promos. Drop them before localization and SVG icon creation so the

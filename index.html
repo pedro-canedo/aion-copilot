@@ -1,14 +1,18 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="copilot">
   <head>
     <meta charset="utf-8" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1" />
-    <title>A2Tools DPS Meter</title>
+    <title>aion-copilot</title>
     <script src="/src/js/settingsBootstrap.js"></script>
     <link
       href="/src/styles.css"
+      rel="stylesheet"
+      type="text/css" />
+    <link
+      href="/src/copilot.css"
       rel="stylesheet"
       type="text/css" />
     <!--
@@ -50,17 +54,59 @@
               <i data-lucide="camera"></i>
             </div>
           </div>
-          <div class="bossNames">
-            <span class="bossName"></span>
+          <div class="copilotMetric" data-no-drag>
+            <button type="button" class="cmStep cmPrev" aria-label="Métrica anterior">‹</button>
+            <button type="button" class="cmCurrent" aria-haspopup="menu" aria-expanded="false"><span class="cmLabel">Dano causado</span><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            <button type="button" class="cmStep cmNext" aria-label="Próxima métrica">›</button>
+            <div class="cmMenu" role="menu" hidden></div>
           </div>
+          <button type="button" class="copilotMyDps" data-no-drag title="Seu DPS nesta luta">Meu DPS <b>—</b></button>
+          <span class="copilotClock" title="Tempo de luta">0:00</span>
 
           <div class="headerBtns">
+            <label class="quickOpacity" data-no-drag title="Transparência">
+              <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M12 20a6 6 0 0 0 6-6H6" fill="currentColor" opacity="0.35"/></svg>
+              <input class="quickOpacityInput" type="range" min="0" max="100" step="5" value="40" aria-label="Transparência do fundo" />
+            </label>
+            <span class="dragGrip" title="Arraste para mover" aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
             <div class="headerBtn lockBtn" style="display:none" role="button" tabindex="0" aria-label="Lock overlay (click-through)" data-i18n-aria-label="settings.showLockBtn"><i data-lucide="lock-open"></i></div>
             <div class="headerBtn suspendBtn" style="display:none"><i data-lucide="power"></i></div>
             <div class="headerBtn historyBtn" role="button" tabindex="0" aria-label="Fight history" data-i18n-aria-label="history.title"><i data-lucide="scroll-text"></i></div>
             <div class="headerBtn resetBtn"><i data-lucide="rotate-ccw"></i></div>
             <div class="headerBtn settingsBtn"><i data-lucide="settings"></i></div>
           </div>
+        </div>
+        <div class="copilotTarget">
+          <div class="bossNames">
+            <span class="bossName"></span>
+          </div>
+        </div>
+        <div class="copilotTabs" role="tablist" aria-label="Tipo de conteúdo">
+          <button type="button" class="copilotAuto" title="Automático: a aba segue o tipo do alvo que você atacou">Auto</button>
+          <button type="button" role="tab" class="copilotTab" data-mode="bossTargets" title="Lutas contra chefes">Chefes</button>
+          <button type="button" role="tab" class="copilotTab" data-mode="lastHitByMe" data-tab="mob" title="O monstro que você atacou por último">Monstros</button>
+          <button type="button" role="tab" class="copilotTab" data-mode="lastHitByMe" data-tab="train" title="O boneco de treino em que você está batendo (cada um com seu contador)">Treino</button>
+          <button type="button" role="tab" class="copilotTab" data-mode="allTargets" title="Tudo nos últimos 2 minutos">Todos</button>
+          <span class="copilotViewPick">
+            <button type="button" class="copilotViewBtn" aria-haspopup="menu" aria-expanded="false" title="Escolher a visão (pausa o Auto)"><span class="cvLabel">Monstros</span><svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            <span class="cvMenu" role="menu" hidden></span>
+          </span>
+          <span class="copilotTools">
+            <button type="button" class="copilotToolBtn copilotHistBtn" aria-haspopup="true" aria-expanded="false" title="Lutas recentes por tipo">Histórico <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+            <button type="button" class="copilotToolBtn copilotCopyBtn" title="Copiar o medidor como imagem" aria-label="Copiar o medidor como imagem"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg></button>
+            <button type="button" class="copilotToolBtn copilotTopBtn" title="Quantos jogadores mostrar">Top 5</button>
+            <button type="button" class="copilotToolBtn copilotResetBtn" title="Zerar o medidor" aria-label="Zerar o medidor"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
+          </span>
+        </div>
+        <div class="copilotHist" hidden>
+          <div class="chTabs" role="tablist" aria-label="Tipo de luta">
+            <button type="button" role="tab" class="chTab" data-kind="dungeon">Expedições</button>
+            <button type="button" role="tab" class="chTab" data-kind="world">Mundo</button>
+            <button type="button" role="tab" class="chTab" data-kind="train">Treino</button>
+            <button type="button" role="tab" class="chTab" data-kind="pvp">PvP</button>
+          </div>
+          <ul class="chList"></ul>
+          <button type="button" class="chAll">Ver histórico completo</button>
         </div>
         <div class="bossHpBar" style="display:none">
           <div class="bossHpFill"></div>
@@ -1270,7 +1316,15 @@
             <div class="historyList"></div>
           </div>
         </div>
+        <div class="copilotCols" aria-hidden="true">
+          <span class="colName">Nome</span><span class="colCp">CP</span><span class="colDmg">Dano</span><span class="colHeal">Cura</span><span class="colPct">%</span>
+        </div>
+        <section class="copilotPvp" hidden aria-label="PvP">
+          <div class="cpHead"><span class="cpZone">⚔ PvP</span><span class="cpMeta"><span class="cpTime">0:00</span><b class="cpK">0</b><small>K</small><b class="cpD">0</b><small>D</small></span></div>
+          <div class="cpBody"></div>
+        </section>
         <div class="list"></div>
+        <p class="copilotEmpty" hidden></p>
         <div class="meterFooter">
           <div class="battleTime">
             <div class="status"></div>
@@ -1547,5 +1601,9 @@
     <script src="/src/js/i18n.js"></script>
     <script src="/src/js/core.js?v=2018a"></script>
     <script src="/src/js/pluginSettings.js"></script>
+    <script src="/src/js/copilot.js"></script>
+    <script src="/src/js/copilotView.js"></script>
+    <script src="/src/js/copilotPvp.js"></script>
+    <script src="/src/js/copilotSettings.js"></script>
   </body>
 </html>

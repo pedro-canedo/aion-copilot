@@ -1,0 +1,118 @@
+/* aion-copilot · Routine overlay, in the meter's "Éter" look. */
+@font-face { font-family: "Sora"; font-weight: 400; font-display: swap; src: url("/vendor/fonts/copilot/sora-latin-400-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: "Sora"; font-weight: 400; font-display: swap; src: url("/vendor/fonts/copilot/sora-latin-ext-400-normal.woff2") format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF; }
+@font-face { font-family: "Sora"; font-weight: 600; font-display: swap; src: url("/vendor/fonts/copilot/sora-latin-600-normal.woff2") format("woff2"); unicode-range: U+0000-00FF, U+2000-206F; }
+@font-face { font-family: "Sora"; font-weight: 600; font-display: swap; src: url("/vendor/fonts/copilot/sora-latin-ext-600-normal.woff2") format("woff2"); unicode-range: U+0100-02AF, U+1E00-1EFF; }
+@font-face { font-family: "JetBrains Mono"; font-weight: 400; font-display: swap; src: url("/vendor/fonts/copilot/jetbrains-mono-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 600; font-display: swap; src: url("/vendor/fonts/copilot/jetbrains-mono-latin-600-normal.woff2") format("woff2"); }
+
+:root {
+  --accent: #8fd3ff;
+  --text: #eaf3f8;
+  --sub: #9fb7c4;
+  --done: #8fe0a8;
+  --edge: rgba(190, 225, 245, 0.18);
+  --bg: 16, 24, 28;
+  --sans: "Sora", "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", "Cascadia Mono", Consolas, monospace;
+  color-scheme: dark;
+}
+
+html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
+body { font-family: var(--sans); color: var(--text); font-size: 13px; user-select: none; }
+button, input, select { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+.panel {
+  --panel-alpha: 0.55;
+  box-sizing: border-box;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--edge);
+  background: rgba(var(--bg), var(--panel-alpha));
+}
+
+.head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; cursor: grab; }
+.title { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.eyebrow { font-size: 15px; font-weight: 600; }
+.kicker { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sub); }
+.charName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.resets { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 11px; color: var(--sub); }
+.resets b { font-family: var(--mono); font-weight: 600; color: var(--accent); }
+
+.tools { display: flex; align-items: center; gap: 4px; }
+.quickOpacity { display: inline-flex; align-items: center; gap: 4px; height: 24px; padding: 0 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); color: var(--sub); }
+.quickOpacity input { width: 54px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.grip { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 24px; color: var(--sub); cursor: grab; }
+.iconBtn { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 6px; background: transparent; color: var(--sub); cursor: pointer; }
+.iconBtn:hover, .grip:hover { color: var(--text); background: rgba(255, 255, 255, 0.07); }
+body.locked .head { cursor: default; }
+body.locked .grip, body.locked .quickOpacity { display: none; }
+body.locked .lockBtn { color: var(--accent); }
+
+.lists { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.lists::-webkit-scrollbar { width: 6px; }
+.lists::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+.groupHead { display: flex; justify-content: space-between; padding: 0 4px 4px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sub); }
+.groupCount { font-family: var(--mono); letter-spacing: 0; }
+
+.items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.item { display: flex; align-items: center; gap: 8px; min-height: 30px; padding: 0 6px 0 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); }
+.item .label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item.isDone .label { color: var(--sub); text-decoration: line-through; }
+.item.isDone { background: rgba(143, 224, 168, 0.08); }
+.check { flex: 0 0 auto; width: 18px; height: 18px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 5px; border: 1px solid rgba(190, 225, 245, 0.35); background: transparent; color: #0e1318; cursor: pointer; }
+.item.isDone .check { background: var(--done); border-color: var(--done); }
+.count { font-family: var(--mono); font-size: 12px; color: var(--sub); min-width: 42px; text-align: right; }
+.item.isDone .count { color: var(--done); }
+.step { flex: 0 0 auto; width: 22px; height: 22px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 6px; background: rgba(255, 255, 255, 0.07); color: var(--text); cursor: pointer; }
+.step:hover { background: rgba(255, 255, 255, 0.14); }
+.del { flex: 0 0 auto; width: 20px; height: 20px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 5px; background: transparent; color: var(--sub); cursor: pointer; opacity: 0; }
+.item:hover .del, .del:focus-visible { opacity: 1; }
+.del:hover { color: #ffa595; }
+
+.add { display: flex; gap: 6px; }
+.newTask { flex: 1 1 auto; min-width: 0; height: 28px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--edge); background: rgba(0, 0, 0, 0.25); }
+.newTask::placeholder { color: rgba(159, 183, 196, 0.6); }
+.newScope { height: 28px; border-radius: 8px; border: 1px solid var(--edge); background: rgba(16, 24, 28, 0.9); }
+.addBtn { height: 28px; padding: 0 10px; border: 0; border-radius: 8px; background: rgba(143, 211, 255, 0.18); color: var(--accent); font-weight: 600; cursor: pointer; }
+.addBtn:hover { background: rgba(143, 211, 255, 0.28); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.naoPerca { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px; background: rgba(255, 196, 120, 0.14); border: 1px solid rgba(255, 196, 120, 0.4); }
+.naoPercaTitle { font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #ffc478; font-weight: 600; }
+.naoPercaText { font-size: 12px; white-space: pre-line; color: var(--text); }
+
+/* Combat power as the game shows it: crossed swords, in its teal blue. */
+html.copilot { --copilot-cp: #5fd6ec; }
+html.copilot .cpCp:not(.isGs),
+html.copilot .cpGame { display: inline-flex; align-items: center; gap: 4px; color: var(--copilot-cp) !important; font-weight: 700 !important; background: rgba(95, 214, 236, 0.1) !important; }
+html.copilot .cpCp:not(.isGs)::before,
+html.copilot .cpGame::before { content: ""; flex: 0 0 auto; width: 12px; height: 12px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 17.5L3 6V3h3l11.5 11.5'/%3E%3Cpath d='M13 19l6-6'/%3E%3Cpath d='M16 16l4 4'/%3E%3Cpath d='M19 21l2-2'/%3E%3Cpath d='M14.5 6.5L18 3h3v3l-3.5 3.5'/%3E%3Cpath d='M5 14l4 4'/%3E%3Cpath d='M7 17l-3 3'/%3E%3Cpath d='M3 19l2 2'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14.5 17.5L3 6V3h3l11.5 11.5'/%3E%3Cpath d='M13 19l6-6'/%3E%3Cpath d='M16 16l4 4'/%3E%3Cpath d='M19 21l2-2'/%3E%3Cpath d='M14.5 6.5L18 3h3v3l-3.5 3.5'/%3E%3Cpath d='M5 14l4 4'/%3E%3Cpath d='M7 17l-3 3'/%3E%3Cpath d='M3 19l2 2'/%3E%3C/svg%3E") center / contain no-repeat; }
+html.copilot .cpGame { background: none !important; }
+/* "Agora": what the game says (routineAuto.js), here and in the Painel. */
+.raList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.raItem { --tone: var(--accent); display: flex; flex-direction: column; gap: 5px; padding: 7px 10px 8px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); }
+.raItem.is-warn { --tone: #ffc478; background: rgba(255, 196, 120, 0.08); }
+.raItem.is-done { --tone: var(--done); background: rgba(143, 224, 168, 0.08); }
+.raItem.is-out { --tone: #ffa595; background: rgba(255, 165, 149, 0.07); }
+.raTop { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.raName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--sub); }
+.raVal { display: inline-flex; align-items: baseline; gap: 4px; font-family: var(--mono); white-space: nowrap; }
+.raBig { font-size: 17px; font-weight: 600; color: var(--text); }
+.raExtra { font-size: 12px; font-weight: 600; color: var(--accent); }
+.raMax { font-size: 11px; color: var(--sub); }
+.raBar { height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.raFill { height: 100%; width: 0; border-radius: 3px; background: var(--tone); transition: width 300ms; }
+.raSub { font-size: 11px; color: var(--sub); }
+.raItem.is-warn .raSub, .raItem.is-done .raSub, .raItem.is-out .raSub { color: var(--tone); }
+.raEmpty { padding: 8px 10px; border-radius: 10px; border: 1px dashed var(--edge); font-size: 12px; line-height: 1.4; color: var(--sub); }
+.raSource { margin: 2px 4px 0; font-size: 11px; color: var(--sub); }
+.groupCount.isLive { color: var(--done); }
+.devCounters { margin-top: 6px; font-size: 11px; color: var(--sub); }
+.devCounters summary { cursor: pointer; padding: 0 4px; }
+.devList { list-style: none; margin: 4px 0 0; padding: 0 4px; columns: 2; font-family: var(--mono); user-select: text; }

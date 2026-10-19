@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="pt-BR" class="copilot">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>aion-copilot — Mascotes</title>
+    <link href="/src/routine.css" rel="stylesheet" type="text/css" />
+    <style>
+      .title { min-width: 0; }
+      .who { font-size: 11px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .who .isLive { color: var(--done); }
+      .tabs { display: flex; gap: 4px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, 0.05); }
+      .tab { flex: 1 1 0; height: 26px; border: 0; border-radius: 7px; background: transparent; color: var(--sub); font-size: 12px; font-weight: 600; cursor: pointer; }
+      .tab:hover { color: var(--text); }
+      .tab[aria-selected="true"] { background: rgba(143, 211, 255, 0.16); color: var(--accent); }
+      .pane { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+      .scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+      .scroll::-webkit-scrollbar { width: 6px; }
+      .scroll::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+      .pet { --lv: var(--sub); display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 1px 8px; min-height: 34px; padding: 4px 8px; box-sizing: border-box; border-radius: 8px; background: rgba(255, 255, 255, 0.04); }
+      .pet.lv0 { --lv: #ff6b6b; background: rgba(255, 107, 107, 0.08); }
+      .pet.lv1 { --lv: #ffc478; }
+      .pet.lv2 { --lv: #8fd3ff; }
+      .pet.lv3 { --lv: #8fe0a8; }
+      .dot { grid-row: 1 / span 2; width: 10px; height: 10px; border-radius: 50%; background: var(--lv); box-shadow: 0 0 6px var(--lv); }
+      .nameLine { display: flex; align-items: center; gap: 4px; min-width: 0; }
+      .petName { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 600; }
+      .petName.isAnon { font-weight: 400; color: var(--sub); }
+      .pencil { flex: none; width: 18px; height: 18px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 4px; background: transparent; color: var(--sub); cursor: pointer; opacity: 0.45; }
+      .pet:hover .pencil, .pencil:focus-visible { opacity: 1; }
+      .pencil:hover { color: var(--text); background: rgba(255, 255, 255, 0.08); }
+      .nameInput { flex: 1 1 auto; min-width: 0; height: 22px; padding: 0 6px; border-radius: 6px; border: 1px solid var(--edge); background: rgba(0, 0, 0, 0.35); font-size: 12px; user-select: text; }
+      .petSub { grid-column: 2; font-size: 11px; color: var(--sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .petSub .lvTag { color: var(--lv); font-weight: 600; }
+      .where { grid-column: 3; grid-row: 1 / span 2; display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+      .where .dir { color: var(--sub); font-size: 10px; min-width: 18px; }
+      .arrow { display: inline-flex; color: var(--accent); }
+      .arrow svg { width: 16px; height: 16px; transition: transform 300ms; }
+      .souls { grid-column: 3; grid-row: 1 / span 2; font-family: var(--mono); font-size: 12px; color: var(--sub); white-space: nowrap; }
+      .chips { display: flex; flex-wrap: wrap; gap: 4px; }
+      .chip { --lv: var(--sub); display: inline-flex; align-items: baseline; gap: 4px; padding: 3px 8px; border-radius: 999px; background: rgba(255, 255, 255, 0.06); font-size: 11px; color: var(--sub); }
+      .chip b { font-family: var(--mono); color: var(--lv); }
+      .chip.lv0 { --lv: #ff6b6b; } .chip.lv1 { --lv: #ffc478; } .chip.lv2 { --lv: #8fd3ff; } .chip.lv3 { --lv: #8fe0a8; }
+      .filters { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; color: var(--sub); }
+      .filter { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+      .filter input { margin: 0; accent-color: var(--accent); cursor: pointer; }
+      .secHead { padding: 6px 4px 2px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sub); }
+      .note { margin: 0; padding: 0 4px; font-size: 11px; line-height: 1.4; color: var(--sub); }
+      .speciesCount { flex: none; font-family: var(--mono); font-size: 11px; color: var(--sub); }
+      .species { --st: var(--sub); }
+      .species.st-missing { --lv: #ff6b6b; --st: #ff6b6b; background: rgba(255, 107, 107, 0.08); }
+      .species.st-upgrade { --lv: #ffc478; --st: #ffc478; }
+      .species.st-complete { --lv: #8fe0a8; --st: #8fe0a8; }
+      .species.st-unknown, .species.st-unread { --lv: var(--sub); --st: var(--sub); }
+      .species.isSoul { box-shadow: inset 2px 0 0 #c9a2ff; }
+      .species .petSub { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 4px; min-width: 0; white-space: normal; }
+      .species .petSub .chip { flex: none; padding: 0 6px; font-size: 10px; line-height: 16px; }
+      .stChip { color: var(--st); background: color-mix(in srgb, var(--st) 16%, transparent); }
+      .stChip.st-unknown, .stChip.st-unread { background: rgba(255, 255, 255, 0.06); }
+      .soulChip { color: #c9a2ff; background: rgba(201, 162, 255, 0.16); }
+      .subText { flex: 1 1 120px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      .empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; color: var(--sub); font-size: 12px; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <section class="panel" aria-label="Mascotes">
+      <header class="head" data-drag>
+        <div class="title">
+          <span class="eyebrow">Mascotes</span>
+          <span class="who"></span>
+        </div>
+        <div class="tools">
+          <label class="quickOpacity" title="Transparência">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M12 20a6 6 0 0 0 6-6H6" fill="currentColor" opacity="0.35"/></svg>
+            <input class="opacityInput" type="range" min="0" max="100" step="5" value="55" aria-label="Transparência do fundo" />
+          </label>
+          <span class="grip" title="Arraste para mover" data-drag aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+          <button type="button" class="iconBtn lockBtn" aria-label="Travar posição" title="Travar posição"></button>
+          <button type="button" class="iconBtn closeBtn" aria-label="Fechar" title="Fechar"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+      </header>
+      <div class="tabs" role="tablist" aria-label="Visão">
+        <button type="button" class="tab" role="tab" data-tab="near" aria-selected="true">Perto</button>
+        <button type="button" class="tab" role="tab" data-tab="collection" aria-selected="false">Coleção</button>
+      </div>
+      <div class="pane nearPane" role="tabpanel">
+        <p class="note nearNote" hidden></p>
+        <ul class="scroll nearList" hidden></ul>
+        <div class="empty nearEmpty">Carregando…</div>
+      </div>
+      <div class="pane collectionPane" role="tabpanel" hidden>
+        <div class="chips"></div>
+        <div class="filters">
+          <label class="filter"><input type="checkbox" class="missingOnly" /> Faltando subir</label>
+          <span class="collectionCount"></span>
+        </div>
+        <ul class="scroll collectionList" hidden></ul>
+        <div class="empty collectionEmpty">Carregando…</div>
+      </div>
+    </section>
+    <script src="/src/js/overlayChrome.js"></script>
+    <script src="/src/js/petsCore.js"></script>
+    <script src="/src/js/pets.js"></script>
+  </body>
+</html>

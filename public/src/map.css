@@ -1,0 +1,119 @@
+/* aion-copilot · Map overlay, in the "Éter" look (routine.css first). */
+:root { --me: #ff9f43; --live: #8fe0a8; }
+
+.mapPanel { position: relative; gap: 8px; padding: 10px 10px 8px; }
+.mapPanel .head { align-items: center; }
+
+.worldBtn { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 0; border: 0; background: none; color: var(--text); cursor: pointer; text-align: left; }
+.worldBtn .worldName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.worldBtn svg { flex: 0 0 auto; color: var(--sub); }
+.worldBtn:hover svg, .worldBtn[aria-expanded="true"] svg { color: var(--accent); }
+
+.layersBtn { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 9px; border: 1px solid rgba(143, 211, 255, 0.3); border-radius: 999px; background: rgba(143, 211, 255, 0.1); color: var(--accent); font-size: 11.5px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.layersBtn:hover, .layersBtn[aria-expanded="true"] { background: rgba(143, 211, 255, 0.2); }
+.layersBtn:disabled { opacity: 0.45; cursor: default; background: rgba(143, 211, 255, 0.1); }
+.mapWrap.noWorld .legend, .mapWrap.noWorld .mapControls { display: none; }
+.layersCount { font-family: var(--mono); font-weight: 600; }
+
+.worldMenu { position: absolute; z-index: 6; top: 52px; left: 10px; display: flex; flex-direction: column; gap: 2px; min-width: 220px; max-height: 60%; overflow-y: auto; padding: 6px; border-radius: 12px; border: 1px solid var(--edge); background: rgba(12, 19, 24, 0.96); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5); }
+.worldMenu button { display: flex; justify-content: space-between; gap: 10px; padding: 6px 8px; border: 0; border-radius: 7px; background: none; text-align: left; cursor: pointer; font-size: 12px; }
+.worldMenu button:hover { background: rgba(255, 255, 255, 0.07); }
+.worldMenu button[aria-checked="true"] { color: var(--accent); }
+.worldMenu small { color: var(--sub); font-size: 10.5px; }
+.worldMenu .wmSep { height: 1px; margin: 3px 4px; background: var(--edge); }
+
+/* The map: a canvas, the compass on its edges, controls and a legend on top. */
+.mapWrap { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; border-radius: 12px; border: 1px solid rgba(143, 211, 255, 0.22); background: radial-gradient(120% 90% at 50% 40%, rgba(22, 34, 42, 0.92), rgba(8, 13, 17, 0.94)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05); }
+.mapCanvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: grab; touch-action: none; }
+.mapWrap.isPanning .mapCanvas { cursor: grabbing; }
+.mapWrap.isOver .mapCanvas { cursor: pointer; }
+
+.compass { position: absolute; z-index: 2; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: rgba(10, 16, 21, 0.7); border: 1px solid rgba(143, 211, 255, 0.25); color: var(--sub); font-family: var(--mono); font-size: 9.5px; font-weight: 600; pointer-events: none; }
+.compass.isN { top: 6px; left: calc(50% - 9px); color: var(--accent); }
+.compass.isS { bottom: 6px; left: calc(50% - 9px); }
+.compass.isE { right: 6px; top: calc(50% - 9px); }
+.compass.isW { left: 6px; top: calc(50% - 9px); }
+
+.mapNote { position: absolute; z-index: 3; top: 30px; left: 50%; transform: translateX(-50%); max-width: calc(100% - 80px); padding: 4px 10px; border-radius: 999px; background: rgba(10, 16, 21, 0.82); border: 1px solid var(--edge); color: var(--sub); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+
+.mapEmpty { position: absolute; z-index: 4; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 20px; text-align: center; background: rgba(8, 13, 17, 0.55); color: var(--sub); font-size: 12px; line-height: 1.5; }
+.mapEmpty svg { color: var(--accent); opacity: 0.8; }
+.mapEmpty b { color: var(--text); font-size: 14px; font-weight: 600; }
+.emptyPick { margin-top: 4px; height: 28px; padding: 0 12px; border: 0; border-radius: 8px; background: rgba(143, 211, 255, 0.18); color: var(--accent); font-weight: 600; cursor: pointer; }
+.emptyPick:hover { background: rgba(143, 211, 255, 0.28); }
+
+.mapControls { position: absolute; z-index: 3; right: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 4px; }
+.ctl { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 1px solid rgba(143, 211, 255, 0.22); border-radius: 8px; background: rgba(10, 16, 21, 0.82); color: var(--sub); cursor: pointer; }
+.ctl:hover { color: var(--text); background: rgba(22, 34, 42, 0.92); }
+.followBtn[aria-pressed="true"] { color: var(--accent); border-color: rgba(143, 211, 255, 0.55); box-shadow: 0 0 10px rgba(143, 211, 255, 0.25); }
+
+.legend { position: absolute; z-index: 3; left: 8px; bottom: 8px; display: flex; flex-direction: column; gap: 3px; margin: 0; padding: 5px 9px; list-style: none; border-radius: 9px; background: rgba(10, 16, 21, 0.78); border: 1px solid rgba(143, 211, 255, 0.16); color: var(--sub); font-size: 10.5px; pointer-events: none; }
+.legend li { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; box-sizing: border-box; }
+.lgMe { background: var(--me); box-shadow: 0 0 0 1.5px #fff; }
+.lgGuess { border: 1.5px dashed var(--me); background: rgba(255, 159, 67, 0.15); }
+.lgLearned { border: 1.5px dashed var(--accent); background: rgba(143, 211, 255, 0.15); }
+.lgLive { border: 1.5px solid var(--live); background: transparent; }
+
+.mapTip { position: absolute; z-index: 5; max-width: 240px; padding: 6px 9px; border-radius: 9px; background: rgba(10, 16, 21, 0.95); border: 1px solid rgba(143, 211, 255, 0.3); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45); font-size: 12px; line-height: 1.4; pointer-events: none; }
+.mapTip b { display: block; font-weight: 600; }
+.mapTip span { display: block; color: var(--sub); font-size: 11px; }
+.mapTip .tipLearned { color: var(--accent); }
+.mapTip .tipBack { color: #ffc478; }
+.mapTip .tipLive { color: var(--live); }
+.mapTip .tipAsk { color: var(--accent); font-style: italic; }
+
+/* "O que é isto?": tell the map what an object is, next to it. */
+.mapAsk { position: absolute; z-index: 7; display: flex; flex-direction: column; width: min(300px, calc(100% - 12px)); max-height: calc(100% - 12px); overflow-y: auto; padding: 8px 6px 6px; border-radius: 12px; border: 1px solid rgba(143, 211, 255, 0.28); background: rgba(12, 19, 24, 0.96); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5); }
+.mapAsk[hidden] { display: none; }
+.mapAsk::-webkit-scrollbar { width: 6px; }
+.mapAsk::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+.askHead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 0 6px 4px; }
+.askHead b { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.askCode { font-family: var(--mono); font-size: 10px; color: #ffc478; user-select: text; }
+.askGroup { padding: 6px 6px 3px; color: var(--sub); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+.askList { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 1px 4px; }
+.askList button { display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: center; gap: 7px; min-height: 26px; padding: 0 6px; border: 0; border-radius: 7px; background: none; color: var(--text); font-size: 12px; text-align: left; cursor: pointer; }
+.askList button:hover, .askList button:focus-visible { background: rgba(255, 255, 255, 0.07); outline: none; }
+.askList button[aria-checked="true"] { background: rgba(143, 211, 255, 0.14); color: var(--accent); }
+.askName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.askOther { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--edge); }
+
+/* CAMADAS: a drawer over the map, one row per layer. */
+.layersPanel { position: absolute; z-index: 6; top: 6px; right: 6px; bottom: 6px; display: flex; flex-direction: column; width: min(270px, calc(100% - 12px)); border-radius: 12px; border: 1px solid rgba(143, 211, 255, 0.28); background: rgba(12, 19, 24, 0.96); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.5); }
+.lpHead { display: flex; align-items: center; gap: 8px; padding: 8px 6px 8px 12px; border-bottom: 1px solid var(--edge); }
+.lpTitle { flex: 1 1 auto; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+.lpLink { padding: 0; border: 0; background: none; color: var(--sub); font-size: 11px; cursor: pointer; white-space: nowrap; }
+.lpLink:hover { color: var(--text); text-decoration: underline; }
+.lpGroups { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 6px 8px; }
+.lpGroups::-webkit-scrollbar { width: 6px; }
+.lpGroups::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+.lpGroup { margin-top: 6px; }
+.lpGroupHead { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 4px 6px; border: 0; border-radius: 6px; background: none; color: var(--sub); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; cursor: pointer; }
+.lpGroupHead:hover { color: var(--text); background: rgba(255, 255, 255, 0.05); }
+.lpGroupHead .groupCount { font-family: var(--mono); letter-spacing: 0; }
+.lpHint { margin: 0 6px 4px; color: var(--sub); font-size: 10.5px; line-height: 1.4; opacity: 0.8; }
+.lpRow { display: grid; grid-template-columns: 16px 20px minmax(0, 1fr) auto; align-items: center; gap: 7px; min-height: 28px; padding: 0 6px; border-radius: 7px; cursor: pointer; }
+.lpRow:hover { background: rgba(255, 255, 255, 0.05); }
+.lpRow input { width: 14px; height: 14px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.lpIcon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 6px; background: color-mix(in srgb, var(--c) 18%, transparent); color: var(--c); }
+.lpName { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.lpCount { font-family: var(--mono); font-size: 11px; color: var(--sub); }
+.lpCount small { margin-left: 3px; color: var(--accent); font-size: 10px; }
+.lpRow.isEmpty .lpName, .lpRow.isEmpty .lpCount { opacity: 0.45; }
+
+.mapFoot { display: flex; flex-direction: column; gap: 2px; padding: 0 2px; }
+.mapFoot p { margin: 0; font-size: 10.5px; line-height: 1.4; color: var(--sub); }
+.mapFoot .accuracyNote { color: rgba(159, 183, 196, 0.9); }
+.mapFoot .devLine { font-family: var(--mono); font-size: 10px; color: #ffc478; user-select: text; }
+.mapFoot .credit { padding-right: 16px; font-size: 9.5px; opacity: 0.75; }
+
+.resizeGrip { position: absolute; right: 3px; bottom: 3px; display: inline-flex; width: 14px; height: 14px; color: var(--sub); opacity: 0.6; cursor: nwse-resize; }
+.resizeGrip:hover { opacity: 1; color: var(--accent); }
+body.locked .resizeGrip { display: none; }
+
+/* Small windows: the long note goes to a tooltip on the credit line. */
+@media (max-height: 420px), (max-width: 420px) {
+  .mapFoot .accuracyNote { display: none; }
+  .legend { display: none; }
+}

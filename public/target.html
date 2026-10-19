@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="pt-BR" class="copilot">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>aion-copilot — Alvo</title>
+    <link href="/src/routine.css" rel="stylesheet" type="text/css" />
+    <style>
+      .target { display: flex; flex-direction: column; gap: 8px; }
+      .tName { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; min-width: 0; }
+      .tName span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      .chip { flex: 0 0 auto; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; background: rgba(255, 196, 120, 0.16); color: #ffc478; }
+      .hp { position: relative; height: 16px; border-radius: 4px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+      .hpFill { position: absolute; inset: 0 auto 0 0; width: 0; background: linear-gradient(90deg, rgba(255, 120, 110, 0.55), rgba(255, 165, 149, 0.8)); transition: width 300ms ease; }
+      .hpText { position: relative; display: flex; justify-content: space-between; padding: 0 6px; font-family: var(--mono); font-size: 11px; line-height: 16px; }
+      .stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+      .stat { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); min-width: 0; }
+      .stat .k { font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--sub); }
+      .stat .v { font-family: var(--mono); font-size: 13px; font-weight: 600; white-space: nowrap; }
+      .you { display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px; border-radius: 8px; box-shadow: inset 0 0 0 1px rgba(143, 211, 255, 0.45); font-size: 12px; }
+      .you b { font-family: var(--mono); color: var(--accent); }
+      .pvp { display: flex; flex-direction: column; gap: 8px; }
+      .pvpHead { display: flex; align-items: center; gap: 8px; min-width: 0; }
+      .pvpHead img { width: 26px; height: 26px; object-fit: contain; }
+      .pvpHead .pName { font-size: 15px; font-weight: 600; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      .pvpHead .chip { background: rgba(255, 143, 143, 0.16); color: #ff8f8f; }
+      .pvp .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .score { display: flex; gap: 6px; }
+      .score div { flex: 1 1 0; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); font-family: var(--mono); font-size: 14px; font-weight: 600; }
+      .score .kills { color: var(--done); }
+      .score .deaths { color: #ff8f8f; }
+      .empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; color: var(--sub); font-size: 12px; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <section class="panel" aria-label="Alvo">
+      <header class="head" data-drag>
+        <div class="title"><span class="eyebrow">Alvo</span></div>
+        <div class="tools">
+          <label class="quickOpacity" title="Transparência">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M12 20a6 6 0 0 0 6-6H6" fill="currentColor" opacity="0.35"/></svg>
+            <input class="opacityInput" type="range" min="0" max="100" step="5" value="55" aria-label="Transparência do fundo" />
+          </label>
+          <span class="grip" title="Arraste para mover" data-drag aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+          <button type="button" class="iconBtn lockBtn" aria-label="Travar posição" title="Travar posição"></button>
+          <button type="button" class="iconBtn closeBtn" aria-label="Fechar" title="Fechar"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+      </header>
+      <div class="target" hidden>
+        <div class="tName"><span class="tLabel"></span><span class="chip" hidden>Chefe</span></div>
+        <div class="hp" title="Vida do alvo"><div class="hpFill"></div><div class="hpText"><span class="hpPct">—</span><span class="hpAbs"></span></div></div>
+        <div class="stats">
+          <div class="stat"><span class="k">Tempo</span><span class="v sTime">—</span></div>
+          <div class="stat"><span class="k">DPS grupo</span><span class="v sDps">—</span></div>
+          <div class="stat"><span class="k">Mata em</span><span class="v sTtk">—</span></div>
+        </div>
+        <div class="you" hidden><span>Você: <b class="youRank"></b></span><span><b class="youDps"></b> · <b class="youPct"></b></span></div>
+      </div>
+      <div class="pvp" hidden>
+        <div class="pvpHead"><img class="pJob" alt="" hidden /><span class="pName"></span><span class="chip">PvP</span></div>
+        <div class="stats">
+          <div class="stat"><span class="k">Combat Power</span><span class="v pCp cpGame">—</span></div>
+          <div class="stat"><span class="k">Vida</span><span class="v pHp">—</span></div>
+        </div>
+        <div class="score" title="Seu histórico contra este jogador">
+          <div class="kills" title="Vezes que você o matou"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 17.5L3 6V3h3l11.5 11.5M13 19l6-6M16 16l4 4M19 21l2-2"/></svg><span class="pKills">0</span></div>
+          <div class="deaths" title="Vezes que ele matou você"><svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true"><path d="M12 2C7 2 3.5 5.6 3.5 10c0 2.6 1.2 4.6 3 5.8V19a1 1 0 0 0 1 1h1.5v-2h1.5v2h3v-2h1.5v2H16.5a1 1 0 0 0 1-1v-3.2c1.8-1.2 3-3.2 3-5.8C20.5 5.6 17 2 12 2zm-3.5 11a2 2 0 1 1 0-4 2 2 0 0 1 0 4zm7 0a2 2 0 1 1 0-4 2 2 0 0 1 0 4z"/></svg><span class="pDeaths">0</span></div>
+        </div>
+      </div>
+      <div class="empty">Sem alvo em combate.<br />Ataque algo e o alvo aparece aqui.</div>
+    </section>
+    <script src="/src/js/overlayChrome.js"></script>
+    <script src="/src/js/target.js"></script>
+  </body>
+</html>

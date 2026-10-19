@@ -31,6 +31,9 @@ default = ["desktop", "online"]
 #
 #   npm run build:offline
 #
+# aion-copilot: the OBS stream overlay (a local HTTP server) without any of
+# the online services, for the personal offline build.
+obs = ["desktop", "dep:urlencoding"]
 online = [
     "desktop",
     "dep:reqwest",

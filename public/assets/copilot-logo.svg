@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="aion-copilot">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#16262c"/>
+      <stop offset="1" stop-color="#0b1316"/>
+    </linearGradient>
+    <linearGradient id="wing" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#4a88a8"/>
+      <stop offset="1" stop-color="#bfe8ff"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="0.35" stop-color="#8fd3ff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#8fd3ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#bg)"/>
+  <rect x="16.5" y="16.5" width="479" height="479" rx="111.5" fill="none" stroke="#8fd3ff" stroke-opacity="0.22" stroke-width="3"/>
+  <!-- left wing: three feathers sweeping up to the apex, forming the A's left leg -->
+  <path d="M256 128 C214 176 170 250 120 392 C150 372 176 352 196 330 C190 360 182 382 170 404 C204 380 228 348 244 312 Z" fill="url(#wing)"/>
+  <path d="M232 214 C196 250 160 300 132 352 C160 330 188 300 210 268 Z" fill="#dff4ff" fill-opacity="0.35"/>
+  <!-- right wing, mirrored -->
+  <path d="M256 128 C298 176 342 250 392 392 C362 372 336 352 316 330 C322 360 330 382 342 404 C308 380 284 348 268 312 Z" fill="url(#wing)"/>
+  <path d="M280 214 C316 250 352 300 380 352 C352 330 324 300 302 268 Z" fill="#dff4ff" fill-opacity="0.35"/>
+  <!-- the A's crossbar: a horizon line -->
+  <path d="M200 318 H312" stroke="#bfe8ff" stroke-width="14" stroke-linecap="round"/>
+  <!-- the guide star at the apex -->
+  <circle cx="256" cy="112" r="64" fill="url(#glow)"/>
+  <path d="M256 70 L266 102 L298 112 L266 122 L256 154 L246 122 L214 112 L246 102 Z" fill="#ffffff"/>
+</svg>

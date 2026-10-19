@@ -1,10 +1,9 @@
 name: CI
 
+# aion-copilot: by hand only (gh workflow run ci.yml --ref <branch>). These are
+# upstream's jobs, with its default (online) features; the copilot build is
+# tested locally with --no-default-features --features desktop,obs.
 on:
-  push:
-    branches: [main]
-  pull_request:
-  # By hand, for a branch: gh workflow run ci.yml --ref <branch>
   workflow_dispatch:
 
 env:

@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="pt-BR" class="copilot">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>aion-copilot — Barra</title>
+    <link href="/src/routine.css" rel="stylesheet" type="text/css" />
+    <link href="/src/hub.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <div class="hub">
+      <div class="bar" data-drag>
+        <span class="grip" title="Arraste para mover" data-drag aria-hidden="true"><svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+        <button type="button" class="brand" title="Abrir o Painel">
+          <span class="mark"><img src="/assets/copilot-logo.svg" alt="" /></span>
+          <span class="word">aion-<b>copilot</b></span>
+        </button>
+        <div class="tools" role="toolbar" aria-label="Overlays">
+          <span class="sep" aria-hidden="true"></span>
+          <div class="group overlays"></div>
+          <span class="sep" aria-hidden="true"></span>
+          <button type="button" class="tool painelBtn" data-tip="Painel: resumo, histórico, personagens" aria-label="Painel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+          </button>
+          <button type="button" class="tool moreBtn" data-tip="Configurações" aria-label="Configurações" aria-haspopup="menu" aria-expanded="false">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+          </button>
+        </div>
+        <button type="button" class="collapse" aria-label="Recolher a barra" aria-expanded="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+      </div>
+      <div class="tip" role="tooltip" hidden></div>
+      <div class="menu" role="menu" hidden>
+        <button type="button" class="opt autostartOpt" role="menuitemcheckbox" aria-checked="false"><span>Iniciar com o Windows<small>pega os nomes desde a tela de login</small></span><span class="switch"></span></button>
+        <button type="button" class="opt settingsOpt" role="menuitem"><span>Configurações do medidor<small>idioma, cores, atalhos, streaming</small></span><span></span></button>
+      </div>
+    </div>
+    <script src="/src/js/hub.js"></script>
+  </body>
+</html>

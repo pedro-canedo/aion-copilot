@@ -68,3 +68,23 @@ settings.properties
 
 # Never commit a signing key.
 *.pem
+
+# aion-copilot: Npcap installer bundled for personal installs (Npcap free license), not versioned
+src-tauri/deps/
+
+# aion-copilot: the Routine overlay page and its stylesheet are source.
+!/public/routine.html
+!/public/src/routine.css
+!/public/src/map.css
+!/public/group.html
+!/public/bosses.html
+!/public/target.html
+!/public/timers.html
+!/public/map.html
+!/public/pets.html
+!/public/hub.html
+!/public/painel.html
+
+# aion-copilot: reverse-engineering notes and tools stay local, off the public repo
+/docs/re/
+/tools/re/

@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="pt-BR" class="copilot">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>aion-copilot — Timers</title>
+    <link href="/src/routine.css" rel="stylesheet" type="text/css" />
+    <style>
+      .title { min-width: 0; }
+      .eyebrow { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .eyebrow .region { font-weight: 400; color: var(--sub); }
+      .timers { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+      .timers::-webkit-scrollbar { width: 6px; }
+      .timers::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 3px; }
+      .timer { display: grid; grid-template-columns: 16px minmax(0, 1fr) auto 58px; align-items: center; gap: 2px 8px; min-height: 30px; padding: 4px 8px; box-sizing: border-box; border-radius: 8px; background: rgba(255, 255, 255, 0.04); }
+      .timer .ico { display: inline-flex; color: var(--accent); }
+      .timer .ico svg { width: 15px; height: 15px; }
+      .timer .name { display: flex; align-items: baseline; gap: 4px; min-width: 0; }
+      .timer .label { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      .timer .approx { flex: none; font-size: 10px; color: var(--sub); }
+      .timer .at, .timer .left { font-family: var(--mono); font-size: 12px; white-space: nowrap; text-align: right; }
+      .timer .at { color: var(--sub); }
+      .timer .left { color: var(--text); }
+      .timer .sub { grid-column: 2 / -1; font-size: 11px; color: #ffc478; }
+      .timer.isNow { background: rgba(255, 196, 120, 0.12); box-shadow: inset 0 0 0 1px rgba(255, 196, 120, 0.35); }
+      .timer.isNow .ico, .timer.isNow .left { color: #ffc478; font-weight: 600; }
+      .timer.isSoon .left { color: #ffc478; font-weight: 600; }
+      .timer.isBoss .ico { color: var(--sub); }
+      .timer.isReset .ico { color: var(--done); }
+      .note { padding: 2px 4px 4px; font-size: 11px; line-height: 1.4; color: var(--sub); }
+      .secHead { padding: 6px 4px 2px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sub); }
+      .empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; color: var(--sub); font-size: 12px; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <section class="panel" aria-label="Timers">
+      <header class="head" data-drag>
+        <div class="title">
+          <span class="eyebrow">Timers <span class="region"></span></span>
+        </div>
+        <div class="tools">
+          <label class="quickOpacity" title="Transparência">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M12 20a6 6 0 0 0 6-6H6" fill="currentColor" opacity="0.35"/></svg>
+            <input class="opacityInput" type="range" min="0" max="100" step="5" value="55" aria-label="Transparência do fundo" />
+          </label>
+          <span class="grip" title="Arraste para mover" data-drag aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+          <button type="button" class="iconBtn lockBtn" aria-label="Travar posição" title="Travar posição"></button>
+          <button type="button" class="iconBtn closeBtn" aria-label="Fechar" title="Fechar"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+      </header>
+      <ul class="timers" hidden></ul>
+      <div class="empty">Carregando os horários…</div>
+    </section>
+    <script src="/src/js/overlayChrome.js"></script>
+    <script src="/src/js/timersCore.js"></script>
+    <script src="/src/js/timers.js"></script>
+  </body>
+</html>

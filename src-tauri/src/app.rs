@@ -83,7 +83,7 @@ pub struct AppState {
     #[cfg(feature = "online")]
     pub account_seen: Mutex<Option<Option<crate::account::AccountSummary>>>,
     /// The LAN stream overlay for OBS on another PC; off unless enabled.
-    #[cfg(feature = "online")]
+    #[cfg(any(feature = "online", feature = "obs"))]
     pub stream_overlay: crate::stream_overlay::Manager,
 }
 
@@ -688,14 +688,14 @@ fn account_sign_out(state: tauri::State<'_, AppState>) {
     tracing::info!("Account signed out on this machine");
 }
 
-#[cfg(feature = "online")]
+#[cfg(any(feature = "online", feature = "obs"))]
 /// The stream overlay as Settings shows it: on or off, the port, the URLs.
 #[tauri::command]
 fn stream_overlay_status(state: tauri::State<'_, AppState>) -> crate::stream_overlay::Status {
     state.stream_overlay.status(&state.settings)
 }
 
-#[cfg(feature = "online")]
+#[cfg(any(feature = "online", feature = "obs"))]
 /// Turn the stream overlay on or off, or move it to another port. Async so a
 /// restart, which waits for the old port to close, never holds the UI thread.
 #[tauri::command]
@@ -715,7 +715,7 @@ async fn stream_overlay_configure(
     Ok(crate::stream_overlay::sync(&app))
 }
 
-#[cfg(feature = "online")]
+#[cfg(any(feature = "online", feature = "obs"))]
 /// A fresh overlay key: every URL handed out before stops working.
 #[tauri::command]
 async fn stream_overlay_new_key(app: tauri::AppHandle) -> Result<crate::stream_overlay::Status, String> {
@@ -914,7 +914,7 @@ fn update_settings(
             restart_global_hotkeys(&app);
         }
         let _ = app.emit("setting-changed", serde_json::json!({ "key": key, "value": value }));
-        #[cfg(feature = "online")]
+        #[cfg(any(feature = "online", feature = "obs"))]
         if key.starts_with(crate::stream_overlay::ENABLED_KEY) {
             crate::stream_overlay::sync(&app);
         }
@@ -925,7 +925,7 @@ fn update_settings(
 #[cfg_attr(not(feature = "online"), allow(unused_variables))]
 fn clear_settings(app: tauri::AppHandle, state: tauri::State<'_, AppState>) {
     state.settings.clear();
-    #[cfg(feature = "online")]
+    #[cfg(any(feature = "online", feature = "obs"))]
     crate::stream_overlay::sync(&app);
 }
 
@@ -1567,20 +1567,20 @@ async fn account_begin_link() -> Result<serde_json::Value, String> {
 #[tauri::command]
 fn account_sign_out() {}
 
-#[cfg(not(feature = "online"))]
+#[cfg(not(any(feature = "online", feature = "obs")))]
 #[tauri::command]
 fn stream_overlay_status() -> Result<serde_json::Value, String> {
     Err(NOT_IN_THIS_BUILD.into())
 }
 
-#[cfg(not(feature = "online"))]
+#[cfg(not(any(feature = "online", feature = "obs")))]
 #[tauri::command]
 async fn stream_overlay_configure(enabled: bool, port: u16) -> Result<serde_json::Value, String> {
     let _ = (enabled, port);
     Err(NOT_IN_THIS_BUILD.into())
 }
 
-#[cfg(not(feature = "online"))]
+#[cfg(not(any(feature = "online", feature = "obs")))]
 #[tauri::command]
 async fn stream_overlay_new_key() -> Result<serde_json::Value, String> {
     Err(NOT_IN_THIS_BUILD.into())
@@ -1810,7 +1810,7 @@ fn open_details_on_monitor_inner(
         tauri::WebviewUrl::App("index.html".into()),
     )
     .initialization_script("window.__A2_VIEW__ = 'details';")
-    .title("A2Tools DPS Meter — Details")
+    .title("aion-copilot — Details")
     .decorations(false)
     .transparent(false)
     // Intentional: the point of this window is to stay readable on a second
@@ -1895,7 +1895,7 @@ const DETAILS_USER_PLACED_KEY: &str = "window.details.userPlaced";
 /// left. Per-fight windows (details-*) are deliberately absent: they are
 /// opened to be read and closed, and keying geometry by fight id would grow
 /// settings without bound.
-const TOOL_WINDOWS: [&str; 3] = ["details", "settings", "history"];
+const TOOL_WINDOWS: [&str; 12] = ["details", "settings", "history", "routine", "group", "bosses", "target", "timers", "map", "pets", "hub", "painel"];
 
 /// Remember where tool window `label` is and its size. Called on every move
 /// and resize, and every 5 s as before: with only the timer, a window moved
@@ -2141,7 +2141,7 @@ fn build_settings_window(app: &tauri::AppHandle) -> Result<(), String> {
     // Injected before any page script. WebviewUrl::App is a path, so a ?query
     // gets percent-encoded — this is the one channel that is reliable.
     .initialization_script(SETTINGS_WINDOW_SCRIPT)
-    .title("A2Tools DPS Meter — Settings")
+    .title("aion-copilot — Settings")
     .decorations(false)
     .transparent(false)
     // Matches Details: the overlay itself is always-on-top, so a settings window
@@ -2391,7 +2391,7 @@ fn open_fight_window(app: &tauri::AppHandle, label: &str) -> Result<(), String> 
         tauri::WebviewUrl::App("index.html".into()),
     )
     .initialization_script("window.__A2_VIEW__ = 'details';")
-    .title("A2Tools DPS Meter — Fight")
+    .title("aion-copilot — Fight")
     .decorations(false)
     .transparent(false)
     .always_on_top(true)
@@ -2417,7 +2417,7 @@ fn open_history_window_inner(app: &tauri::AppHandle) -> Result<(), String> {
         tauri::WebviewUrl::App("index.html".into()),
     )
     .initialization_script("window.__A2_VIEW__ = 'history';")
-    .title("A2Tools DPS Meter — Battle History")
+    .title("aion-copilot — Battle History")
     .decorations(false)
     .transparent(false)
     .always_on_top(true)
@@ -2435,6 +2435,477 @@ fn open_history_window_inner(app: &tauri::AppHandle) -> Result<(), String> {
         center_on_overlay_monitor(app, &window);
     }
     Ok(())
+}
+
+/// aion-copilot: its own overlays, each a page of its own in a transparent,
+/// always-on-top window that remembers where it was left:
+/// "routine" (daily/weekly checklist and reset timers), "group" (party),
+/// "timers" (the next scheduled events, field bosses and resets), "map"
+/// (where you are, with the map's layers) and the rest.
+fn copilot_overlay_spec(label: &str) -> Option<(&'static str, &'static str, (f64, f64))> {
+    match label {
+        "routine" => Some(("routine.html", "aion-copilot — Rotina", (300.0, 430.0))),
+        "group" => Some(("group.html", "aion-copilot — Grupo", (280.0, 260.0))),
+        "bosses" => Some(("bosses.html", "aion-copilot — Chefes", (300.0, 340.0))),
+        "target" => Some(("target.html", "aion-copilot — Alvo", (300.0, 250.0))),
+        "timers" => Some(("timers.html", "aion-copilot — Timers", (340.0, 380.0))),
+        "map" => Some(("map.html", "aion-copilot — Mapa", (560.0, 600.0))),
+        "pets" => Some(("pets.html", "aion-copilot — Mascotes", (320.0, 380.0))),
+        "hub" => Some(("hub.html", "aion-copilot — Barra", (450.0, 48.0))),
+        "painel" => Some(("painel.html", "aion-copilot — Painel", (1100.0, 700.0))),
+        _ => None,
+    }
+}
+
+/// The Painel is an ordinary window (frame, taskbar, not over the game);
+/// every other copilot overlay floats transparent above it.
+fn copilot_is_overlay(label: &str) -> bool {
+    label != "painel"
+}
+
+fn open_copilot_overlay(app: &tauri::AppHandle, label: &str) -> Result<(), String> {
+    let (page, title, size) = copilot_overlay_spec(label).ok_or("unknown overlay")?;
+    if let Some(window) = app.get_webview_window(label) {
+        let _ = window.show();
+        return Ok(());
+    }
+    let (x, y, w, h) = birth_place(app, Some(label), size, true);
+    let overlay = copilot_is_overlay(label);
+    let min = match label {
+        "hub" => (200.0, 36.0),
+        "map" => (360.0, 320.0),
+        _ if overlay => (220.0, 140.0),
+        _ => (760.0, 480.0),
+    };
+    let window = tauri::WebviewWindowBuilder::new(app, label, tauri::WebviewUrl::App(page.into()))
+        .title(title)
+        .decorations(!overlay)
+        .transparent(overlay)
+        .shadow(!overlay)
+        .always_on_top(overlay)
+        .resizable(true)
+        .skip_taskbar(overlay)
+        .position(x, y)
+        .inner_size(w, h)
+        .min_inner_size(min.0, min.1)
+        .background_color(if overlay { tauri::window::Color(0, 0, 0, 0) } else { tauri::window::Color(14, 20, 23, 255) })
+        .build()
+        .map_err(|e| e.to_string())?;
+    if !overlay {
+        let _ = window.set_focus();
+    }
+    if !restore_window_geometry(app, &window, label) {
+        copilot_default_place(&window, label, (w, h));
+    }
+    if let Some(state) = app.try_state::<AppState>() {
+        state.settings.set(&format!("copilot.{label}Open"), "true");
+    }
+    Ok(())
+}
+
+/// aion-copilot: where an overlay opens the first time, before the player
+/// moves it: the bar near the top-right corner (left of the minimap, as the
+/// game lays out its HUD), the others in a column under it. The Painel is
+/// centred, like any window.
+fn copilot_default_place(window: &tauri::WebviewWindow, label: &str, size: (f64, f64)) {
+    if label == "painel" {
+        let _ = window.center();
+        return;
+    }
+    let Ok(Some(monitor)) = window.current_monitor() else { return };
+    let scale = monitor.scale_factor();
+    let origin = monitor.position();
+    let screen = monitor.size();
+    let right = origin.x as f64 + screen.width as f64;
+    // Logical px from the right edge to the window's right edge, and from the top.
+    let (from_right, top) = match label {
+        "hub" => (360.0, 12.0),
+        "target" => (24.0, 300.0),
+        "group" => (24.0, 570.0),
+        "routine" => (340.0, 300.0),
+        "bosses" => (340.0, 740.0),
+        "timers" => (656.0, 300.0),
+        "map" => (972.0, 300.0),
+        "pets" => (656.0, 696.0),
+        _ => (24.0, 300.0),
+    };
+    // Never past the left edge, on a screen too narrow for the column.
+    let x = (right - (from_right + size.0) * scale).max(origin.x as f64);
+    let y = origin.y as f64 + top * scale;
+    let _ = window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x: x as i32, y: y as i32 }));
+}
+
+/// aion-copilot: open one of its overlays, or close it when it is open.
+/// Returns whether it is open afterwards. Async: on Windows a window built
+/// from a synchronous command (the main thread) deadlocks its own webview.
+#[tauri::command]
+async fn toggle_copilot_overlay(app: tauri::AppHandle, label: String) -> Result<bool, String> {
+    copilot_overlay_spec(&label).ok_or("unknown overlay")?;
+    if let Some(window) = app.get_webview_window(&label) {
+        save_tool_window_geometry(&app, &label);
+        let _ = window.close();
+        if let Some(state) = app.try_state::<AppState>() {
+            state.settings.set(&format!("copilot.{label}Open"), "false");
+        }
+        return Ok(false);
+    }
+    open_copilot_overlay(&app, &label)?;
+    Ok(true)
+}
+
+/// aion-copilot: the field bosses of the maps opened in the game, for the
+/// Bosses overlay (see `copilot::field_bosses`).
+#[tauri::command]
+fn copilot_field_bosses(state: tauri::State<'_, AppState>) -> Vec<crate::copilot::FieldBossView> {
+    crate::copilot::field_bosses(&state.data_storage, &state.npc_lookup)
+}
+
+/// aion-copilot: the Timers overlay's schedule of recurring events (see
+/// `copilot::timer_schedule`); the page works out when each comes next.
+#[tauri::command]
+fn copilot_timer_rules() -> crate::copilot::TimerSchedule {
+    crate::copilot::timer_schedule()
+}
+
+/// aion-copilot: start with Windows (the user's Run key, no admin needed),
+/// so the meter is there for every loading screen and learns every name.
+/// `enable` sets it; either way returns whether it is on.
+#[tauri::command]
+fn copilot_autostart(enable: Option<bool>) -> Result<bool, String> {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        const NO_WINDOW: u32 = 0x0800_0000;
+        const KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
+        if let Some(on) = enable {
+            let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+            let quoted = format!("\"{}\"", exe.display());
+            let mut cmd = std::process::Command::new("reg");
+            if on {
+                cmd.args(["add", KEY, "/v", "aion-copilot", "/t", "REG_SZ", "/d", &quoted, "/f"]);
+            } else {
+                cmd.args(["delete", KEY, "/v", "aion-copilot", "/f"]);
+            }
+            let _ = cmd.creation_flags(NO_WINDOW).status();
+        }
+        let on = std::process::Command::new("reg")
+            .args(["query", KEY, "/v", "aion-copilot"])
+            .creation_flags(NO_WINDOW)
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        Ok(on)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = enable;
+        Ok(false)
+    }
+}
+
+/// aion-copilot: which windows are up, for the bar's overlay list.
+#[tauri::command]
+fn copilot_overlay_states(app: tauri::AppHandle) -> std::collections::HashMap<String, bool> {
+    let mut out: std::collections::HashMap<String, bool> = ["routine", "group", "bosses", "target", "timers", "map", "pets", "painel"]
+        .iter()
+        .map(|l| (l.to_string(), app.get_webview_window(l).is_some()))
+        .collect();
+    out.insert("meter".into(), meter_wanted(&app));
+    out
+}
+
+/// aion-copilot: the characters you have played while the app was open.
+#[tauri::command]
+fn copilot_characters(app: tauri::AppHandle) -> Vec<crate::copilot::CharacterSeen> {
+    let Ok(dir) = app.path().app_data_dir() else { return Vec::new() };
+    crate::copilot::load_characters(&dir.join("copilot-characters.json"))
+}
+
+/// aion-copilot: the kind of target you hit last, for the meter's tabs.
+#[tauri::command]
+fn copilot_target_kind(state: tauri::State<'_, AppState>) -> &'static str {
+    crate::copilot::last_target_kind(&state.data_storage, &state.npc_lookup)
+}
+
+fn copilot_pvp_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    app.path().app_data_dir().ok().map(|d| d.join("copilot-pvp.json"))
+}
+
+/// aion-copilot: your PvP record, the latest opponent first.
+#[tauri::command]
+fn copilot_pvp(app: tauri::AppHandle) -> Vec<crate::copilot::PvpOpponent> {
+    copilot_pvp_path(&app).map(|p| crate::copilot::load_pvp(&p)).unwrap_or_default()
+}
+
+/// aion-copilot: the player you hit last, with your record against them.
+#[tauri::command]
+fn copilot_pvp_target(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> Option<crate::copilot::PvpTargetView> {
+    let record = copilot_pvp_path(&app).map(|p| crate::copilot::load_pvp(&p)).unwrap_or_default();
+    crate::copilot::pvp_target(&state.data_storage, &record)
+}
+
+/// aion-copilot: developer mode shows the meter's technical settings (network
+/// adapter, plugins, advanced): debug builds, or AION_COPILOT_DEV=1.
+#[tauri::command]
+fn copilot_dev_mode() -> bool {
+    cfg!(debug_assertions) || std::env::var("AION_COPILOT_DEV").is_ok_and(|v| v == "1")
+}
+
+/// aion-copilot: the Routine's automatic part (Odyle energy, time in the
+/// Abyss, Abyss points, kinah earned today, attendance) for the character
+/// playing, or the one seen last; the raw counters and the supply boards only
+/// in developer mode (see `copilot::routine_state`).
+#[tauri::command]
+fn copilot_routine_state(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> crate::copilot::RoutineStateView {
+    let file = app
+        .path()
+        .app_data_dir()
+        .ok()
+        .map(|d| crate::copilot::load_routine_file(&d.join("copilot-routine-state.json")))
+        .unwrap_or_default();
+    crate::copilot::routine_state(&state.data_storage, &file, copilot_dev_mode(), crate::copilot::game_pid().is_some())
+}
+
+/// aion-copilot: when this app started: PvP "this session" counts from here.
+static COPILOT_SESSION_START: std::sync::OnceLock<i64> = std::sync::OnceLock::new();
+
+/// aion-copilot: the maps known to be the Abyss (learned, kept in copilot-maps.json).
+static COPILOT_ABYSS_MAPS: std::sync::Mutex<Option<std::collections::HashSet<i32>>> = std::sync::Mutex::new(None);
+
+/// aion-copilot: where you are (world, Abyss, expedition).
+#[tauri::command]
+fn copilot_zone(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> crate::copilot::ZoneView {
+    let file = app.path().app_data_dir().ok().map(|d| d.join("copilot-maps.json"));
+    let mut known = COPILOT_ABYSS_MAPS.lock().unwrap_or_else(|e| e.into_inner());
+    let maps = known.get_or_insert_with(|| {
+        file.as_ref()
+            .and_then(|f| std::fs::read_to_string(f).ok())
+            .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+            .and_then(|v| v.get("abyss").and_then(|a| serde_json::from_value::<Vec<i32>>(a.clone()).ok()))
+            .unwrap_or_default()
+            .into_iter()
+            .collect()
+    });
+    let zone = crate::copilot::zone_view(&state.data_storage, &state.npc_lookup, maps);
+    // A land world's id is never kept as the Abyss: the load into the Abyss
+    // may name one (see `copilot_map`).
+    if zone.kind == "abyss" && zone.map_id != 0 && !crate::copilot_map::is_land_world(zone.map_id) && maps.insert(zone.map_id) {
+        tracing::info!("aion-copilot: map {} is the Abyss", zone.map_id);
+        if let Some(f) = &file {
+            let mut list: Vec<i32> = maps.iter().copied().collect();
+            list.sort_unstable();
+            let _ = std::fs::write(f, serde_json::json!({ "abyss": list }).to_string());
+        }
+    }
+    zone
+}
+
+/// aion-copilot: your side against the players you fought, this session.
+#[tauri::command]
+fn copilot_pvp_board(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> crate::copilot::PvpBoard {
+    let record = copilot_pvp_path(&app).map(|p| crate::copilot::load_pvp(&p)).unwrap_or_default();
+    let since = *COPILOT_SESSION_START.get_or_init(crate::copilot::now_ms);
+    crate::copilot::pvp_board(&state.data_storage, &record, since)
+}
+
+/// aion-copilot: the NPC codes of the open-world (field) bosses, for History.
+#[tauri::command]
+fn copilot_field_boss_codes() -> Vec<i32> {
+    crate::capture::field_bosses::FIELD_BOSSES.iter().map(|&(npc, _)| npc).collect()
+}
+
+/// aion-copilot: your party for the Group overlay (see `copilot::party_view`).
+#[tauri::command]
+fn copilot_party(state: tauri::State<'_, AppState>) -> Vec<crate::copilot::PartyMemberView> {
+    crate::copilot::party_view(&state.data_storage)
+}
+
+/// aion-copilot: the map's state between calls: the places learned
+/// (copilot-map-nodes.json) and the world you are in (see `copilot_map`).
+static COPILOT_MAP: std::sync::Mutex<Option<crate::copilot_map::MapState>> = std::sync::Mutex::new(None);
+
+fn copilot_map_nodes_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    app.path().app_data_dir().ok().map(|d| d.join("copilot-map-nodes.json"))
+}
+
+/// aion-copilot: what you said each object code is (`copilot_map_label_object`).
+fn copilot_map_labels_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    app.path().app_data_dir().ok().map(|d| d.join("copilot-map-labels.json"))
+}
+
+fn with_copilot_map<R>(app: &tauri::AppHandle, f: impl FnOnce(&mut crate::copilot_map::MapState) -> R) -> R {
+    let mut map = COPILOT_MAP.lock().unwrap_or_else(|e| e.into_inner());
+    let map = map.get_or_insert_with(|| {
+        let labels = copilot_map_labels_path(app).map(|p| crate::copilot_map::load_labels(&p)).unwrap_or_default();
+        crate::copilot_map::set_labels(labels);
+        let nodes = copilot_map_nodes_path(app).map(|p| crate::copilot_map::load_nodes(&p)).unwrap_or_default();
+        crate::copilot_map::MapState::new(nodes)
+    });
+    f(map)
+}
+
+/// aion-copilot: write the places learned since the last save (the map
+/// saves every 30 s) before the app goes.
+fn flush_copilot_map_before_exit(app: &tauri::AppHandle) {
+    let mut map = COPILOT_MAP.lock().unwrap_or_else(|e| e.into_inner());
+    let (Some(map), Some(path)) = (map.as_mut(), copilot_map_nodes_path(app)) else { return };
+    if let Some(nodes) = map.take_unsaved()
+        && !crate::copilot_map::save_nodes(&path, &nodes)
+    {
+        map.save_failed();
+        tracing::warn!("aion-copilot: could not save the map's learned places");
+    }
+}
+
+/// aion-copilot: the map's live state (world, you, what is around, places
+/// learned per layer, whether the game is open); None when nothing changed
+/// since `since`. Which record placed you and how the world was told only in
+/// developer mode.
+#[tauri::command]
+fn copilot_map_state(app: tauri::AppHandle, state: tauri::State<'_, AppState>, since: Option<u64>) -> Option<crate::copilot_map::MapStateView> {
+    let now = crate::copilot::now_ms();
+    let game = copilot_game_open(now);
+    let mut view = with_copilot_map(&app, |map| {
+        crate::copilot_map::map_state(&state.data_storage, &state.npc_lookup, map, since, copilot_dev_mode(), game, now)
+    })?;
+    // Your level of each pet a creature in view carries, for its tooltip.
+    if view.entities.iter().any(|e| e.pet.is_some()) {
+        let file = copilot_pets_path(&app).map(|p| crate::copilot_pets::load_pets_file(&p)).unwrap_or_default();
+        let levels = crate::copilot_pets::levels(&state.data_storage, &file);
+        if !levels.is_empty() {
+            for e in view.entities.iter_mut() {
+                e.pet_level = e.pet.map(|p| levels.get(&p).copied().unwrap_or(0));
+            }
+        }
+    }
+    Some(view)
+}
+
+fn copilot_pets_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    app.path().app_data_dir().ok().map(|d| d.join("copilot-pets.json"))
+}
+
+fn copilot_pet_names_path(app: &tauri::AppHandle) -> Option<std::path::PathBuf> {
+    app.path().app_data_dir().ok().map(|d| d.join("copilot-pet-names.json"))
+}
+
+/// aion-copilot: which monster species gives which pet's soul, learned
+/// (`copilot_pets::remember_species`).
+const COPILOT_PET_SPECIES_FILE: &str = "copilot-pet-species.json";
+
+/// aion-copilot: the pet radar (the monsters in view by species, with the
+/// pet each gives when known, and the wild creatures that carry a pet's
+/// soul; the pets you lack or have at a low level first) and your collection
+/// (the game's this session, else the one kept for the character); entity
+/// ids and NPC codes only in developer mode (see `copilot_pets`).
+#[tauri::command]
+fn copilot_pet_radar(app: tauri::AppHandle, state: tauri::State<'_, AppState>) -> crate::copilot_pets::PetRadarView {
+    let now = crate::copilot::now_ms();
+    let file = copilot_pets_path(&app).map(|p| crate::copilot_pets::load_pets_file(&p)).unwrap_or_default();
+    let names = copilot_pet_names_path(&app).map(|p| crate::copilot_pets::load_names(&p)).unwrap_or_default();
+    crate::copilot_pets::radar(&state.data_storage, &file, &names, &state.npc_lookup, copilot_dev_mode(), copilot_game_open(now), now)
+}
+
+/// aion-copilot: your name for a pet (`None` or blank forgets it), kept in
+/// copilot-pet-names.json; false when it could not be saved.
+#[tauri::command]
+fn copilot_pet_name(app: tauri::AppHandle, pet: u32, name: Option<String>) -> bool {
+    copilot_pet_names_path(&app).is_some_and(|p| crate::copilot_pets::set_name(&p, pet, name.as_deref()))
+}
+
+/// aion-copilot: whether the game is open, looked up at most every 5 s: the
+/// map asks every second and the lookup walks every window.
+fn copilot_game_open(now: i64) -> bool {
+    static LAST: std::sync::Mutex<Option<(i64, bool)>> = std::sync::Mutex::new(None);
+    let mut last = LAST.lock().unwrap_or_else(|e| e.into_inner());
+    match *last {
+        Some((at, open)) if (0..5_000).contains(&(now - at)) => open,
+        _ => {
+            let open = crate::copilot::game_pid().is_some();
+            *last = Some((now, open));
+            open
+        }
+    }
+}
+
+/// aion-copilot: every world the map knows, for picking one by hand.
+#[tauri::command]
+fn copilot_map_worlds() -> Vec<crate::copilot_map::WorldView> {
+    crate::copilot_map::worlds().iter().map(|w| crate::copilot_map::WorldView::of(w, None)).collect()
+}
+
+/// aion-copilot: pick the map's world by hand; `None` goes back to telling it.
+#[tauri::command]
+fn copilot_map_pick_world(app: tauri::AppHandle, world: Option<u32>) -> bool {
+    let known = world.is_none_or(|w| crate::copilot_map::world(w).is_some());
+    if known {
+        with_copilot_map(&app, |map| map.pin(world));
+    }
+    known
+}
+
+/// aion-copilot: the layer catalogue of a world (the current one when not
+/// given), with counts and the map's credit line.
+#[tauri::command]
+fn copilot_map_layers(app: tauri::AppHandle, state: tauri::State<'_, AppState>, world: Option<u32>) -> Option<crate::copilot_map::LayersView> {
+    with_copilot_map(&app, |map| {
+        let world = world.or_else(|| map.world().map(|d| d.world))?;
+        crate::copilot_map::layers_view(world, &map.nodes, &state.npc_lookup)
+    })
+}
+
+/// aion-copilot: the markers of some layers of a world (the current one when
+/// not given): the bundled ones, then the ones learned.
+#[tauri::command]
+fn copilot_map_markers(
+    app: tauri::AppHandle,
+    state: tauri::State<'_, AppState>,
+    world: Option<u32>,
+    layers: Vec<String>,
+) -> Option<crate::copilot_map::MarkersView> {
+    with_copilot_map(&app, |map| {
+        let world = world.or_else(|| map.world().map(|d| d.world))?;
+        crate::copilot_map::markers_view(world, &layers, &map.nodes, &state.npc_lookup, copilot_dev_mode())
+    })
+}
+
+/// aion-copilot: say what an object is: a layer of RECURSO, COLECIONÁVEIS
+/// or OBJETOS (`None` or "object" forgets it), for every object of that code
+/// (and, for a gathering point, of that `variant`: which resource it is),
+/// learned before or not. Saved in copilot-map-labels.json; false for any
+/// other layer or when the file could not be written.
+#[tauri::command]
+fn copilot_map_label_object(app: tauri::AppHandle, code: u32, variant: Option<u32>, layer: Option<String>) -> bool {
+    with_copilot_map(&app, |map| {
+        let Some(labels) = crate::copilot_map::label_object(code, variant, layer.as_deref()) else { return false };
+        map.relabelled();
+        copilot_map_labels_path(&app).is_some_and(|p| crate::copilot_map::save_labels(&p, &labels))
+    })
+}
+
+/// aion-copilot: a map tile, kept in map-tiles/ once fetched, or the address
+/// to fetch it from. The personal build has no HTTP client (reqwest comes
+/// only with the `online` feature), so the page fetches it (the CSP allows
+/// tc-imba's site) and hands it back through `copilot_map_tile_store`, as the
+/// skill icons do. Only zoom level 0 exists.
+#[tauri::command]
+async fn copilot_map_tile(app: tauri::AppHandle, world: u32, z: Option<u32>, x: u32, y: u32) -> Result<crate::copilot_map::MapTile, String> {
+    if z.unwrap_or(0) != 0 {
+        return Ok(crate::copilot_map::MapTile::default());
+    }
+    crate::blocking::ICONS.run(move || {
+        let dir = app.state::<AppState>().app_data_dir.clone();
+        crate::copilot_map::cached_tile(&dir, world, x, y)
+    }).await
+}
+
+/// aion-copilot: keep a tile the page fetched (a WebP `data:` URL).
+#[tauri::command]
+async fn copilot_map_tile_store(app: tauri::AppHandle, world: u32, x: u32, y: u32, data_url: String) -> Result<bool, String> {
+    crate::blocking::ICONS.run(move || {
+        let dir = app.state::<AppState>().app_data_dir.clone();
+        crate::copilot_map::store_tile(&dir, world, x, y, &data_url)
+    }).await
 }
 
 /// Close whichever tool window asked. Fight windows are frameless and there can
@@ -2457,7 +2928,7 @@ fn open_details_windowed(app: &tauri::AppHandle) -> Result<(), String> {
         tauri::WebviewUrl::App("index.html".into()),
     )
     .initialization_script("window.__A2_VIEW__ = 'details';")
-    .title("A2Tools DPS Meter — Details")
+    .title("aion-copilot — Details")
     .decorations(false)
     .transparent(false)
     .always_on_top(true)
@@ -2922,6 +3393,7 @@ pub fn run() {
                 // Flush before normal exit or restart, with Exit as a final safeguard.
                 if matches!(event, tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit) {
                     flush_settings_before_exit(app);
+                    flush_copilot_map_before_exit(app);
                 }
             })
             .build())
@@ -3089,12 +3561,143 @@ pub fn run() {
                 overlay_lock: Arc::new(OverlayLock::default()),
                 #[cfg(feature = "online")]
                 account_seen: Mutex::new(None),
-                #[cfg(feature = "online")]
+                #[cfg(any(feature = "online", feature = "obs"))]
                 stream_overlay: crate::stream_overlay::Manager::default(),
             };
             let capture_suspended = state.capture_suspended.clone();
+            // aion-copilot: the species -> pet links learned in earlier sessions.
+            state
+                .data_storage
+                .seed_pet_species(&crate::copilot_pets::load_species(&app_data_dir.join(COPILOT_PET_SPECIES_FILE)));
 
             app.manage(state);
+
+            // aion-copilot: names learned in this game session survive an app
+            // restart (the game only sends them on loading screens).
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    let Ok(dir) = handle.path().app_data_dir() else { return };
+                    let file = dir.join("copilot-names.json");
+                    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                    if let (Some(pid), Ok(text)) = (crate::copilot::game_pid(), std::fs::read_to_string(&file)) {
+                        if let Ok(session) = serde_json::from_str::<crate::copilot::NameSession>(&text) {
+                            let state = handle.state::<AppState>();
+                            let n = crate::copilot::restore_names(&state.data_storage, &session, pid);
+                            tracing::info!("aion-copilot: {n} names restored from this game session");
+                        }
+                    }
+                    let roster = dir.join("copilot-characters.json");
+                    loop {
+                        // You by id but not by name: your last character of that class.
+                        {
+                            let state = handle.state::<AppState>();
+                            let chars = crate::copilot::load_characters(&roster);
+                            for c in &chars {
+                                if state.data_storage.known_combat_power(&c.name).is_none() {
+                                    state.data_storage.note_known_combat_power(&c.name, c.combat_power);
+                                }
+                            }
+                            if let Some(name) = crate::copilot::name_local_from_characters(&state.data_storage, &chars) {
+                                tracing::info!("aion-copilot: you are {name} (last character of this class)");
+                            }
+                        }
+                        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                        // The Routine's counters, kept per character.
+                        crate::copilot::remember_routine(&handle.state::<AppState>().data_storage, &dir.join("copilot-routine-state.json"));
+                        // The pet collection, kept per character.
+                        crate::copilot_pets::remember_pets(&handle.state::<AppState>().data_storage, &dir.join("copilot-pets.json"));
+                        // Which species gives which pet, as learned.
+                        crate::copilot_pets::remember_species(&handle.state::<AppState>().data_storage, &dir.join(COPILOT_PET_SPECIES_FILE));
+                        let Some(pid) = crate::copilot::game_pid() else { continue };
+                        let state = handle.state::<AppState>();
+                        let session = crate::copilot::snapshot_names(&state.data_storage, pid);
+                        crate::copilot::note_character(&state.data_storage, &roster, crate::copilot::now_ms());
+                        if !session.names.is_empty() {
+                            if let Ok(json) = serde_json::to_string(&session) {
+                                let _ = std::fs::write(&file, json);
+                            }
+                        }
+                    }
+                });
+            }
+
+            // aion-copilot: kills and deaths against other players, kept.
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    let Some(path) = copilot_pvp_path(&handle) else { return };
+                    COPILOT_SESSION_START.get_or_init(crate::copilot::now_ms);
+                    let mut tracker = crate::copilot::PvpTracker { from_ms: crate::copilot::now_ms(), local: None };
+                    loop {
+                        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                        let state = handle.state::<AppState>();
+                        let outcomes = crate::copilot::pvp_outcomes(&state.data_storage, &mut tracker, crate::copilot::now_ms());
+                        for o in &outcomes {
+                            tracing::info!("aion-copilot: PvP {} {}", if o.kill { "kill of" } else { "death to" }, o.name);
+                        }
+                        crate::copilot::record_pvp(&state.data_storage, &path, &outcomes);
+                    }
+                });
+            }
+
+            // aion-copilot: the map tells the world and learns where things
+            // are from what came into view, saved every 30 s (and on exit).
+            {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    let Some(path) = copilot_map_nodes_path(&handle) else { return };
+                    let mut saved_ms = crate::copilot::now_ms();
+                    loop {
+                        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                        let state = handle.state::<AppState>();
+                        let now = crate::copilot::now_ms();
+                        // The sightings first: a zone load after them shows in the hints.
+                        let sightings = state.data_storage.take_world_sightings();
+                        let abyss_maps = COPILOT_ABYSS_MAPS.lock().unwrap_or_else(|e| e.into_inner()).clone().unwrap_or_default();
+                        let hints = crate::copilot_map::hints(&state.data_storage, &state.npc_lookup, &abyss_maps, now);
+                        let to_save = with_copilot_map(&handle, |map| {
+                            map.ingest(sightings, &hints, now);
+                            if now - saved_ms >= 30_000 { map.take_unsaved() } else { None }
+                        });
+                        if let Some(nodes) = to_save {
+                            saved_ms = now;
+                            if !crate::copilot_map::save_nodes(&path, &nodes) {
+                                with_copilot_map(&handle, |map| map.save_failed());
+                            }
+                        }
+                    }
+                });
+            }
+
+            // aion-copilot: its overlays come back if they were open.
+            for label in ["hub", "routine", "group", "bosses", "target", "timers", "map", "pets"] {
+                // The bar is always there: it is how the other windows open.
+                if label == "hub" || state_settings_flag(app.handle(), &format!("copilot.{label}Open")) {
+                    let handle = app.handle().clone();
+                    tauri::async_runtime::spawn(async move {
+                        tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                        if let Err(e) = open_copilot_overlay(&handle, label) {
+                            tracing::warn!("{label} overlay: {e}");
+                        }
+                    });
+                }
+            }
+
+            // aion-copilot (dev/testing): AION_COPILOT_REPLAY=<file> replays a
+            // capture into the meter at start, so the UI can be checked
+            // without fighting (tools/re/protocol/tsv_to_replay.py makes one).
+            if let Ok(path) = std::env::var("AION_COPILOT_REPLAY") {
+                let handle = app.handle().clone();
+                tauri::async_runtime::spawn(async move {
+                    tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+                    let state = handle.state::<AppState>();
+                    match replay_file(state, path).await {
+                        Ok(msg) => tracing::info!("aion-copilot replay: {msg}"),
+                        Err(e) => tracing::warn!("aion-copilot replay failed: {e}"),
+                    }
+                });
+            }
 
             // On KDE, a KWin rule keeps the meter above a borderless game
             // (see platform::kwin_rules). Checked at every start and put back
@@ -3146,7 +3749,7 @@ pub fn run() {
             crate::boss_report::spawn(app.handle().clone());
             #[cfg(feature = "online")]
             crate::party_presence::spawn(app.handle().clone());
-            #[cfg(feature = "online")]
+            #[cfg(any(feature = "online", feature = "obs"))]
             crate::stream_overlay::sync(app.handle());
 
             // Reopen the Details window if it was left enabled. Done here rather
@@ -3619,6 +4222,31 @@ pub fn run() {
             request_details_view,
             take_pending_details_request,
             close_tool_window,
+            toggle_copilot_overlay,
+            copilot_party,
+            copilot_field_bosses,
+            copilot_timer_rules,
+            copilot_target_kind,
+            copilot_pvp,
+            copilot_pvp_target,
+            copilot_field_boss_codes,
+            copilot_zone,
+            copilot_dev_mode,
+            copilot_routine_state,
+            copilot_pvp_board,
+            copilot_overlay_states,
+            copilot_characters,
+            copilot_autostart,
+            copilot_map_state,
+            copilot_map_worlds,
+            copilot_map_pick_world,
+            copilot_map_layers,
+            copilot_map_markers,
+            copilot_map_label_object,
+            copilot_pet_radar,
+            copilot_pet_name,
+            copilot_map_tile,
+            copilot_map_tile_store,
             open_settings_window,
             close_settings_window,
             tool_window_ready,
@@ -3719,4 +4347,11 @@ mod tests {
             }
         }
     }
+}
+
+/// aion-copilot: a "true"/"false" setting, false when unset.
+fn state_settings_flag(app: &tauri::AppHandle, key: &str) -> bool {
+    app.try_state::<AppState>()
+        .and_then(|state| state.settings.get(key))
+        .is_some_and(|v| v == "true")
 }

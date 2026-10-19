@@ -1,0 +1,296 @@
+{
+ "groups": [
+  {
+   "id": "destaques",
+   "name": "DESTAQUES"
+  },
+  {
+   "id": "lugares",
+   "name": "LUGARES"
+  },
+  {
+   "id": "teleporte",
+   "name": "TELEPORTE"
+  },
+  {
+   "id": "masmorras",
+   "name": "MASMORRAS"
+  },
+  {
+   "id": "colecionaveis",
+   "name": "COLECIONÁVEIS"
+  },
+  {
+   "id": "recurso",
+   "name": "RECURSO"
+  },
+  {
+   "id": "servicos",
+   "name": "SERVIÇOS"
+  },
+  {
+   "id": "npcs",
+   "name": "NPCS"
+  },
+  {
+   "id": "missoes",
+   "name": "MISSÕES"
+  },
+  {
+   "id": "monstros",
+   "name": "MONSTROS"
+  },
+  {
+   "id": "objetos",
+   "name": "OBJETOS"
+  }
+ ],
+ "layers": [
+  {
+   "id": "fieldBoss",
+   "group": "destaques",
+   "name": "Chefes de campo",
+   "color": "#ff9f5a",
+   "glyph": "crown",
+   "objectCodes": []
+  },
+  {
+   "id": "named",
+   "group": "destaques",
+   "name": "Monstros nomeados",
+   "color": "#ffb86b",
+   "glyph": "star",
+   "objectCodes": []
+  },
+  {
+   "id": "pet",
+   "group": "destaques",
+   "name": "Mascotes",
+   "color": "#ff8fd0",
+   "glyph": "paw",
+   "objectCodes": []
+  },
+  {
+   "id": "village",
+   "group": "lugares",
+   "name": "Vilas",
+   "color": "#8fd3ff",
+   "glyph": "home",
+   "objectCodes": []
+  },
+  {
+   "id": "battlefield",
+   "group": "lugares",
+   "name": "Campos de batalha",
+   "color": "#ff6b6b",
+   "glyph": "swords",
+   "objectCodes": []
+  },
+  {
+   "id": "occupation",
+   "group": "lugares",
+   "name": "Guarnições",
+   "color": "#c792ea",
+   "glyph": "flag",
+   "objectCodes": []
+  },
+  {
+   "id": "teleport",
+   "group": "teleporte",
+   "name": "Kibelisks",
+   "color": "#5ad1c6",
+   "glyph": "portal",
+   "objectCodes": []
+  },
+  {
+   "id": "seal",
+   "group": "masmorras",
+   "name": "Masmorras seladas",
+   "color": "#f5d76e",
+   "glyph": "seal",
+   "objectCodes": []
+  },
+  {
+   "id": "dungeon",
+   "group": "masmorras",
+   "name": "Entradas de masmorra",
+   "color": "#b48cff",
+   "glyph": "door",
+   "objectCodes": []
+  },
+  {
+   "id": "monolith",
+   "group": "colecionaveis",
+   "name": "Rastros Empíreos",
+   "color": "#7ee0ff",
+   "glyph": "monolith",
+   "objectCodes": [
+    1100228,
+    1100229
+   ]
+  },
+  {
+   "id": "hiddenCube",
+   "group": "colecionaveis",
+   "name": "Cubos escondidos",
+   "color": "#ffd36b",
+   "glyph": "cube",
+   "objectCodes": []
+  },
+  {
+   "id": "gatherOdyle",
+   "group": "recurso",
+   "name": "Odyle",
+   "color": "#9be7ff",
+   "glyph": "crystal",
+   "objectCodes": []
+  },
+  {
+   "id": "gatherOrichalcum",
+   "group": "recurso",
+   "name": "Minério de Oricalco",
+   "color": "#d4a373",
+   "glyph": "ore",
+   "objectCodes": []
+  },
+  {
+   "id": "gatherYggdrasil",
+   "group": "recurso",
+   "name": "Tora de Yggdrasil",
+   "color": "#8bc34a",
+   "glyph": "wood",
+   "objectCodes": []
+  },
+  {
+   "id": "gatherSapphire",
+   "group": "recurso",
+   "name": "Safira",
+   "color": "#4f8cff",
+   "glyph": "gem",
+   "objectCodes": []
+  },
+  {
+   "id": "gatherDiamond",
+   "group": "recurso",
+   "name": "Diamante",
+   "color": "#e0f2ff",
+   "glyph": "gem",
+   "objectCodes": []
+  },
+  {
+   "id": "gatherRuby",
+   "group": "recurso",
+   "name": "Rubi",
+   "color": "#ff5c7a",
+   "glyph": "gem",
+   "objectCodes": []
+  },
+  {
+   "id": "gatherAria",
+   "group": "recurso",
+   "name": "Ária",
+   "color": "#a6e3a1",
+   "glyph": "herb",
+   "objectCodes": []
+  },
+  {
+   "id": "gatherTargena",
+   "group": "recurso",
+   "name": "Targena",
+   "color": "#c3e88d",
+   "glyph": "herb",
+   "objectCodes": []
+  },
+  {
+   "id": "gatherCoriolus",
+   "group": "recurso",
+   "name": "Coriolus",
+   "color": "#f78c6c",
+   "glyph": "food",
+   "objectCodes": []
+  },
+  {
+   "id": "gatherKukuru",
+   "group": "recurso",
+   "name": "Kukuru",
+   "color": "#ffcb6b",
+   "glyph": "food",
+   "objectCodes": []
+  },
+  {
+   "id": "gatherMela",
+   "group": "recurso",
+   "name": "Mela",
+   "color": "#ff8fab",
+   "glyph": "food",
+   "objectCodes": []
+  },
+  {
+   "id": "gatherInina",
+   "group": "recurso",
+   "name": "Inina",
+   "color": "#89ddff",
+   "glyph": "herb",
+   "objectCodes": []
+  },
+  {
+   "id": "gatherCypri",
+   "group": "recurso",
+   "name": "Cypri",
+   "color": "#b2ccd6",
+   "glyph": "herb",
+   "objectCodes": []
+  },
+  {
+   "id": "gatherUnknown",
+   "group": "recurso",
+   "name": "Pontos de coleta",
+   "color": "#9aa7b4",
+   "glyph": "leaf",
+   "objectCodes": [
+    1590001,
+    1500000
+   ]
+  },
+  {
+   "id": "services",
+   "group": "servicos",
+   "name": "Serviços",
+   "color": "#8fd3ff",
+   "glyph": "bag",
+   "objectCodes": []
+  },
+  {
+   "id": "npc",
+   "group": "npcs",
+   "name": "NPCs",
+   "color": "#cfd8dc",
+   "glyph": "person",
+   "objectCodes": []
+  },
+  {
+   "id": "quest",
+   "group": "missoes",
+   "name": "Missões",
+   "color": "#ffe082",
+   "glyph": "scroll",
+   "objectCodes": []
+  },
+  {
+   "id": "monster",
+   "group": "monstros",
+   "name": "Monstros",
+   "color": "#ef5350",
+   "glyph": "paw",
+   "objectCodes": []
+  },
+  {
+   "id": "object",
+   "group": "objetos",
+   "name": "Objetos",
+   "color": "#90a4ae",
+   "glyph": "box",
+   "objectCodes": []
+  }
+ ]
+}

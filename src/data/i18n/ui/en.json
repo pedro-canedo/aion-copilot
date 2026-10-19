@@ -1,6 +1,6 @@
 {
   "header": {
-    "title": "A2Tools DPS Meter",
+    "title": "aion-copilot",
     "display": {
       "dps": "DPS",
       "total": "DMG",
@@ -591,7 +591,11 @@
     "identifyingPlayer": "#{id}",
     "a2toolsUser": "Uses A2Tools",
     "dpsSuffix": "/s",
-    "others": "Others"
+    "others": "Others",
+    "deaths": "Deaths",
+    "revives": "Revived",
+    "partial": "Only their damage over time reaches you: at least this much",
+    "kills": "Kills"
   },
   "skills": {
     "fallback": "Skill {code}",
@@ -672,7 +676,7 @@
     "close": "Close"
   },
   "npcapPrompt": {
-    "ask": "A2Tools DPS Meter needs Npcap to read the game's network traffic, and Npcap is missing or not working.\n\nInstall it now? The meter downloads Npcap's installer from npcap.com and opens it. Once Npcap is installed, the meter starts capturing by itself.\n\nChoose No to install it yourself from https://npcap.com/#download",
+    "ask": "aion-copilot needs Npcap to read the game's network traffic, and Npcap is missing or not working.\n\nInstall it now? The meter downloads Npcap's installer from npcap.com and opens it. Once Npcap is installed, the meter starts capturing by itself.\n\nChoose No to install it yourself from https://npcap.com/#download",
     "downloadFailed": "Npcap's installer could not be downloaded ({error}).\n\nInstall it yourself from https://npcap.com/#download, then open the meter again.",
     "stillMissing": "Npcap is still not working. If its installer was closed before it finished, install Npcap from https://npcap.com/#download, then open the meter again."
   },

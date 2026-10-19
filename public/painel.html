@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="pt-BR" class="copilot">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>aion-copilot — Painel</title>
+    <link href="/src/routine.css" rel="stylesheet" type="text/css" />
+    <link href="/src/painel.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body class="painel">
+    <aside class="side">
+      <div class="brandRow">
+        <img src="/assets/copilot-logo.svg" alt="" class="brandLogo" />
+        <span class="brandName">aion-<b>copilot</b></span>
+      </div>
+      <nav class="nav" aria-label="Seções">
+        <button type="button" class="navBtn isActive" data-view="inicio">Início</button>
+        <button type="button" class="navBtn" data-view="historico">Histórico de lutas</button>
+        <button type="button" class="navBtn" data-view="personagens">Personagens</button>
+        <button type="button" class="navBtn" data-view="pvp">PvP</button>
+        <button type="button" class="navBtn" data-view="rotina">Rotina</button>
+        <button type="button" class="navBtn" data-view="chefes">Chefes de campo</button>
+      </nav>
+      <div class="sideFoot">
+        <span class="status"><span class="dot"></span><span class="statusText">—</span></span>
+      </div>
+    </aside>
+
+    <main class="main">
+      <!-- Início -->
+      <section class="view" data-view="inicio">
+        <header class="hero">
+          <div>
+            <span class="eyebrowS greetingTime">—</span>
+            <h1 class="greeting">Bem-vindo</h1>
+            <p class="lede heroSub">Abra o jogo e lute: o resumo se monta sozinho.</p>
+          </div>
+          <div class="resetCards">
+            <div class="mini"><span class="k">Reset diário</span><span class="v dailyIn">—</span><span class="s dailyAt"></span></div>
+            <div class="mini"><span class="k">Reset semanal</span><span class="v weeklyIn">—</span><span class="s weeklyAt"></span></div>
+          </div>
+        </header>
+
+        <div class="naoPercaBig" hidden>
+          <span class="tag">Não perca</span>
+          <span class="naoPercaBigText"></span>
+          <button type="button" class="link" data-goto="rotina">Ver rotina</button>
+        </div>
+
+        <div class="grid">
+          <article class="card wide">
+            <div class="cardHead"><h2>Última luta</h2><button type="button" class="link" data-goto="historico">Histórico</button></div>
+            <div class="lastFight"><p class="emptyText">Nenhuma luta registrada ainda.</p></div>
+          </article>
+          <article class="card">
+            <div class="cardHead"><h2>Números</h2></div>
+            <div class="stats3">
+              <div><span class="k">Lutas</span><span class="v statFights">0</span></div>
+              <div><span class="k">Chefes</span><span class="v statBosses">0</span></div>
+              <div><span class="k">Tempo em luta</span><span class="v statTime">0m</span></div>
+            </div>
+          </article>
+          <article class="card">
+            <div class="cardHead"><h2>Chefes que voltam primeiro</h2><button type="button" class="link" data-goto="chefes">Todos</button></div>
+            <ul class="miniList bossesSoon"><li class="emptyText">Abra o mapa no jogo (M) para ler os chefes.</li></ul>
+          </article>
+          <article class="card">
+            <div class="cardHead"><h2>Timers</h2><button type="button" class="link" data-overlay="timers">Abrir overlay</button></div>
+            <ul class="miniList timersMini"><li class="emptyText">Carregando os horários…</li></ul>
+          </article>
+          <article class="card">
+            <div class="cardHead"><h2>Rotina de hoje</h2><button type="button" class="link" data-goto="rotina">Ver</button></div>
+            <ul class="raList raHome"></ul>
+            <div class="rtProgress"><span class="rtPct">0/0</span><div class="rtBar"><div class="rtFill"></div></div></div>
+            <ul class="miniList rtMini"></ul>
+          </article>
+          <article class="card">
+            <div class="cardHead"><h2>Seus personagens</h2><button type="button" class="link" data-goto="personagens">Ver</button></div>
+            <ul class="miniList charsMini"><li class="emptyText">Aparecem quando você joga com o app aberto.</li></ul>
+          </article>
+        </div>
+      </section>
+
+      <!-- Histórico -->
+      <section class="view" data-view="historico" hidden>
+        <div class="viewHead">
+          <h1>Histórico de lutas</h1>
+          <div class="filters" role="tablist" aria-label="Filtrar lutas">
+            <button type="button" class="chipBtn isActive" data-filter="all">Todas</button>
+            <button type="button" class="chipBtn" data-filter="world">Chefes mundiais</button>
+            <button type="button" class="chipBtn" data-filter="dungeon">Expedições</button>
+            <button type="button" class="chipBtn" data-filter="boss">Outros chefes</button>
+            <button type="button" class="chipBtn" data-filter="pvp">PvP</button>
+            <button type="button" class="chipBtn" data-filter="train">Treino</button>
+          </div>
+          <label class="search"><span class="sr">Buscar</span><input type="search" class="searchInput" placeholder="Buscar alvo…" /></label>
+          <button type="button" class="pillBtn openFullHistory">Abrir histórico completo</button>
+        </div>
+        <div class="tableWrap">
+          <table class="fights">
+            <thead><tr><th>Quando</th><th>Alvo</th><th>Tipo</th><th>Grupo</th><th class="num">Duração</th><th class="num">Dano total</th><th class="num">DPS</th></tr></thead>
+            <tbody></tbody>
+          </table>
+          <p class="emptyText fightsEmpty" hidden>Nenhuma luta neste filtro.</p>
+        </div>
+      </section>
+
+      <!-- Personagens -->
+      <section class="view" data-view="personagens" hidden>
+        <div class="viewHead"><h1>Personagens</h1><p class="lede">Os personagens que você jogou com o aion-copilot aberto.</p></div>
+        <div class="chars"></div>
+      </section>
+
+      <!-- PvP -->
+      <section class="view" data-view="pvp" hidden>
+        <div class="viewHead"><h1>PvP</h1><p class="lede">Quantas vezes você matou cada jogador e quantas vezes morreu para ele. Membros do seu grupo nunca contam.</p></div>
+        <div class="stats3 pvpTotals card">
+          <div><span class="k">Abates</span><span class="v pvpKills">0</span></div>
+          <div><span class="k">Mortes</span><span class="v pvpDeaths">0</span></div>
+          <div><span class="k">Abates por morte</span><span class="v pvpRatio">—</span></div>
+        </div>
+        <div class="pvpList chars"></div>
+      </section>
+
+      <!-- Rotina -->
+      <section class="view" data-view="rotina" hidden>
+        <div class="viewHead"><h1>Rotina</h1><button type="button" class="pillBtn" data-overlay="routine">Abrir overlay da Rotina</button></div>
+        <article class="card">
+          <div class="cardHead"><h2>Agora</h2><span class="emptyText raWho"></span></div>
+          <ul class="raList raView"></ul>
+          <p class="raSource" hidden></p>
+        </article>
+        <div class="routineCols"></div>
+      </section>
+
+      <!-- Chefes -->
+      <section class="view" data-view="chefes" hidden>
+        <div class="viewHead"><h1>Chefes de campo</h1><p class="lede">Do último mapa aberto no jogo (M).</p><button type="button" class="pillBtn" data-overlay="bosses">Abrir overlay</button></div>
+        <ul class="bossList"></ul>
+      </section>
+    </main>
+    <script src="/src/js/timersCore.js"></script>
+    <script src="/src/js/routineAuto.js"></script>
+    <script src="/src/js/painel.js"></script>
+  </body>
+</html>

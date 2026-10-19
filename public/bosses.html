@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR" class="copilot">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>aion-copilot — Chefes</title>
+    <link href="/src/routine.css" rel="stylesheet" type="text/css" />
+    <style>
+      .bosses { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+      .boss { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 30px; padding: 0 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); }
+      .boss .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--sub); }
+      .boss.isUp .dot { background: var(--done); }
+      .boss.isSoon { background: rgba(255, 196, 120, 0.12); box-shadow: inset 0 0 0 1px rgba(255, 196, 120, 0.35); }
+      .boss.isSoon .dot { background: #ffc478; }
+      .boss .name { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      .boss .when { font-family: var(--mono); font-size: 12px; color: var(--sub); white-space: nowrap; }
+      .boss.isUp .when { color: var(--done); }
+      .boss.isSoon .when { color: #ffc478; font-weight: 600; }
+      .mapHead { padding: 6px 4px 2px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sub); }
+      .empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; color: var(--sub); font-size: 12px; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <section class="panel" aria-label="Chefes de campo">
+      <header class="head" data-drag>
+        <div class="title">
+          <span class="eyebrow">Chefes</span>
+        </div>
+        <div class="tools">
+          <label class="quickOpacity" title="Transparência">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M12 20a6 6 0 0 0 6-6H6" fill="currentColor" opacity="0.35"/></svg>
+            <input class="opacityInput" type="range" min="0" max="100" step="5" value="55" aria-label="Transparência do fundo" />
+          </label>
+          <span class="grip" title="Arraste para mover" data-drag aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+          <button type="button" class="iconBtn lockBtn" aria-label="Travar posição" title="Travar posição"></button>
+          <button type="button" class="iconBtn closeBtn" aria-label="Fechar" title="Fechar"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+      </header>
+      <div class="resets summaryLine"><span class="summary">—</span></div>
+      <ul class="bosses" hidden></ul>
+      <div class="empty">Abra o mapa no jogo (M) para ler<br />os chefes de campo daquele mapa.</div>
+    </section>
+    <script src="/src/js/overlayChrome.js"></script>
+    <script src="/src/js/bosses.js"></script>
+  </body>
+</html>

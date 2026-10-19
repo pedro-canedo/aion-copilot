@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt-BR" class="copilot">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>aion-copilot — Grupo</title>
+    <link href="/src/routine.css" rel="stylesheet" type="text/css" />
+    <style>
+      .members { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+      .member { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; min-height: 32px; padding: 0 8px; border-radius: 8px; background: rgba(255, 255, 255, 0.04); }
+      .member.isLocal { box-shadow: inset 0 0 0 1px rgba(143, 211, 255, 0.45); }
+      .member.isDead { background: rgba(255, 165, 149, 0.08); }
+      .member.isDead .name { color: var(--sub); }
+      .member img { width: 22px; height: 22px; object-fit: contain; }
+      .member .name { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+      .member .lvl { font-family: var(--mono); font-size: 11px; color: var(--sub); }
+      .member .cp { font-family: var(--mono); font-size: 11px; padding: 2px 7px; border-radius: 999px; background: rgba(255, 255, 255, 0.07); color: #c9dbe5; }
+      .member .down { display: inline-flex; color: #ffa595; }
+      .summaryLine { margin-top: -4px; }
+      .empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; text-align: center; padding: 12px; color: var(--sub); font-size: 12px; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <section class="panel" aria-label="Grupo">
+      <header class="head" data-drag>
+        <div class="title">
+          <span class="eyebrow">Grupo</span>
+        </div>
+        <div class="tools">
+          <label class="quickOpacity" title="Transparência">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M12 20a6 6 0 0 0 6-6H6" fill="currentColor" opacity="0.35"/></svg>
+            <input class="opacityInput" type="range" min="0" max="100" step="5" value="55" aria-label="Transparência do fundo" />
+          </label>
+          <span class="grip" title="Arraste para mover" data-drag aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+          <button type="button" class="iconBtn lockBtn" aria-label="Travar posição" title="Travar posição"></button>
+          <button type="button" class="iconBtn closeBtn" aria-label="Fechar" title="Fechar"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+      </header>
+      <div class="resets summaryLine"><span class="summary">—</span></div>
+      <ul class="members" hidden></ul>
+      <div class="empty">Sem grupo por enquanto.<br />Entre em um grupo e os membros aparecem aqui.</div>
+    </section>
+    <script src="/src/js/overlayChrome.js"></script>
+    <script src="/src/js/group.js"></script>
+  </body>
+</html>

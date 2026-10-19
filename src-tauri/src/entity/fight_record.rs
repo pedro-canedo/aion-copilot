@@ -49,6 +49,10 @@ pub struct FightRecord {
     /// log service's output change.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub buffs: Option<Vec<crate::combat::fight_buffs::BuffTrack>>,
+    /// aion-copilot: a fight against another player (History's PvP). Not
+    /// written when false, so a saved fight stays as it was.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub is_pvp: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,6 +83,9 @@ pub struct FightSummary {
     /// for two Clerics where `jobs` has one.
     #[serde(default)]
     pub member_jobs: Vec<String>,
+    /// aion-copilot: a fight against another player.
+    #[serde(default)]
+    pub is_pvp: bool,
 }
 
 impl FightRecord {

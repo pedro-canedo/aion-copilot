@@ -491,6 +491,15 @@ pub struct DataStorage {
     /// yet. Its own lock: it is fed every packet, and nothing here needs it
     /// together with `inner`.
     abnormals: Mutex<AbnormalLog>,
+    /// aion-copilot: what is around you and where you are, for the map
+    /// (`combat::world_tracker`). Its own lock, fed every packet.
+    world: Mutex<crate::combat::world_tracker::WorldTracker>,
+    /// aion-copilot: your pet collection and whose it is (`capture::pets`).
+    /// Its own lock; taken after `inner` when both are (never the other way).
+    pets: Mutex<crate::capture::pets::PetBook>,
+    /// aion-copilot: which monster gives which pet's soul, learned
+    /// (`capture::pets::SpeciesBook`). Its own lock, never held with another.
+    pet_species: Mutex<crate::capture::pets::SpeciesBook>,
 }
 
 /// The timeline and when it was last pruned.
@@ -653,6 +662,9 @@ struct Inner {
     /// the character before a switch.
     odyle_owner: Option<String>,
     odyle_awaits_self_record: bool,
+    /// aion-copilot: every counter the game sent and the week's Abyss points,
+    /// with whose they are (`capture::counters`), for the Routine.
+    counters: crate::capture::counters::CounterBook,
 
     // Local player
     local_player_id: Option<i64>,
@@ -686,6 +698,26 @@ struct Inner {
     self_gear_score: Option<(String, i32)>,
     /// The combat power the last self record gave, with the name it was for.
     self_combat_power: Option<(String, i64)>,
+    /// aion-copilot: the last combat power seen for each character name, from
+    /// rosters, self records and the saved characters, so a row keeps it
+    /// once the party is gone (and yours shows when you play alone).
+    known_combat_power: HashMap<String, i64>,
+    /// aion-copilot: the last hit each entity took: (attacker, skill, when),
+    /// summons resolved to their owners. Who killed whom (PvP record).
+    last_attacker: HashMap<i32, (i32, i32, i64)>,
+    /// aion-copilot: for each logged death (entity, time), the last hit the
+    /// entity took before it: (attacker, when).
+    death_killers: VecDeque<((i32, i64), (i32, i64, i64))>,
+    /// aion-copilot: the last time a monster hit each entity.
+    last_npc_hit: HashMap<i32, i64>,
+    /// aion-copilot: each player's HP right before an HP of 0.
+    hp_before_zero: HashMap<i32, i32>,
+    /// aion-copilot: skills seen hitting monsters, so attacks: one of them
+    /// landing on another player is PvP damage, not a heal.
+    attack_skills: HashSet<i32>,
+    /// aion-copilot: players hit by such an attack (kept out of the
+    /// friendly-fire purge).
+    pvp_targets: HashSet<i32>,
 }
 
 #[derive(Default)]
@@ -770,6 +802,7 @@ impl DataStorage {
                 odyle_energy: None,
                 odyle_owner: None,
                 odyle_awaits_self_record: false,
+                counters: Default::default(),
                 local_player_id: None,
                 supporters: std::sync::Arc::new(crate::supporters::Roster::default()),
                 local_character_name: None,
@@ -780,6 +813,13 @@ impl DataStorage {
                 self_profile: None,
                 self_gear_score: None,
                 self_combat_power: None,
+                known_combat_power: HashMap::new(),
+                last_attacker: HashMap::new(),
+                death_killers: VecDeque::new(),
+                last_npc_hit: HashMap::new(),
+                hp_before_zero: HashMap::new(),
+                attack_skills: HashSet::new(),
+                pvp_targets: HashSet::new(),
             }),
             damage_generation: AtomicI64::new(0),
             last_damage_ms: AtomicI64::new(NEVER_MS),
@@ -787,7 +827,101 @@ impl DataStorage {
             combat_reset_requested: AtomicBool::new(false),
             before_reset: RwLock::new(None),
             abnormals: Mutex::new(AbnormalLog { timeline: abnormal::Timeline::default(), pruned_ms: NEVER_MS }),
+            world: Mutex::new(crate::combat::world_tracker::WorldTracker::new()),
+            pets: Mutex::new(crate::capture::pets::PetBook::default()),
+            pet_species: Mutex::new(crate::capture::pets::SpeciesBook::default()),
         }
+    }
+
+    /// aion-copilot: a record with a world position, for the map (see
+    /// `capture::world_position`); anything else is ignored.
+    pub fn note_world_packet(&self, packet: &[u8]) {
+        let Some(record) = crate::capture::world_position::parse(packet) else { return };
+        let local = self.local_player_id().and_then(|id| i32::try_from(id).ok());
+        self.world.lock().note(&record, local, now_ms());
+    }
+
+    /// aion-copilot: read the map's world state under its lock.
+    pub fn with_world<R>(&self, f: impl FnOnce(&crate::combat::world_tracker::WorldTracker) -> R) -> R {
+        f(&self.world.lock())
+    }
+
+    /// aion-copilot: a pet packet (`capture::pets`): the collection, or souls
+    /// gained.
+    pub fn note_pet_packet(&self, packet: crate::capture::pets::PetPacket) {
+        let named = self.game_named_character();
+        if let crate::capture::pets::PetPacket::SoulGain { pet, count } = packet {
+            tracing::debug!("aion-copilot: pet {pet} +{count} souls (0d 90, estimated)");
+            self.pet_species.lock().defer_soul_gain(pet, now_ms());
+        }
+        self.pets.lock().note(packet, named.as_deref(), now_ms());
+    }
+
+    /// aion-copilot: the end of a read of the stream: the souls gained in it
+    /// are put down to the kills, every loot record of the read now seen.
+    pub fn settle_pet_souls(&self) {
+        self.pet_species.lock().settle();
+    }
+
+    /// aion-copilot: a `04 8d` record named `owner_id` / `name` the owner of
+    /// `entity`'s loot. For a monster in view whose owner is you, that is
+    /// your kill, which a soul gain right after is put down to
+    /// (`capture::pets::SpeciesBook`). A soul creature's kill carries the pet
+    /// its spawn named, so its own soul is not put down to a kill beside it.
+    /// Summons get such records too: a spawn seen as no monster (a summon, an
+    /// effect) is left out. An entity whose spawn was never seen is noted
+    /// with no species (`capture::pets::UNKNOWN_CODE`): its souls teach
+    /// nothing, and it keeps those of a kill beside it from being learned.
+    pub fn note_corpse_owner(&self, entity: i32, owner_id: i32, name: &str) {
+        use crate::combat::world_tracker::EntityKind;
+        let mine = {
+            let inner = self.inner.read();
+            inner.local_player_id == Some(i64::from(owner_id))
+                || (inner.local_identity_from_game && inner.local_character_name.as_deref() == Some(name))
+        };
+        if !mine {
+            return;
+        }
+        let kill = match self.world.lock().live().get(&entity) {
+            Some(l) if l.monster => Some((l.code, l.pet)),
+            Some(l) if l.kind != EntityKind::Unknown => None,
+            _ => Some((crate::capture::pets::UNKNOWN_CODE, None)),
+        };
+        if let Some((code, pet)) = kill {
+            self.pet_species.lock().note_kill(entity, code, pet, now_ms());
+        }
+    }
+
+    /// aion-copilot: the monster species -> pet links known (NPC code -> pet
+    /// id), and a number that moves with every change.
+    pub fn pet_species(&self) -> (std::collections::BTreeMap<u32, u32>, u64) {
+        let book = self.pet_species.lock();
+        (book.species.clone(), book.seq)
+    }
+
+    /// aion-copilot: the links kept from earlier sessions
+    /// (`copilot-pet-species.json`); what this one learned wins.
+    pub fn seed_pet_species(&self, kept: &std::collections::BTreeMap<u32, u32>) {
+        self.pet_species.lock().seed(kept);
+    }
+
+    /// aion-copilot: the pet collection the game has sent, and whose it is.
+    pub fn pet_book(&self) -> crate::capture::pets::PetBook {
+        let named = self.game_named_character();
+        let mut pets = self.pets.lock();
+        pets.settle(named.as_deref(), now_ms());
+        pets.clone()
+    }
+
+    /// aion-copilot: who the game has said you are, if it has.
+    fn game_named_character(&self) -> Option<String> {
+        let inner = self.inner.read();
+        if inner.local_identity_from_game { inner.local_character_name.clone() } else { None }
+    }
+
+    /// aion-copilot: the monster and object sightings since the last call.
+    pub fn take_world_sightings(&self) -> Vec<crate::combat::world_tracker::Sighting> {
+        self.world.lock().take_sightings()
     }
 
     /// Each stacking abnormal's stack limit (`abnormal::stack_limits`), so a
@@ -929,6 +1063,8 @@ impl DataStorage {
             inner.odyle_owner = name.clone();
             inner.odyle_awaits_self_record = false;
         }
+        inner.counters.note_self_record(name.as_deref());
+        self.pets.lock().note_self_record(name.as_deref());
         set_game_identity(&mut inner, id, name);
         changed
     }
@@ -1178,7 +1314,37 @@ impl DataStorage {
 
     /// Your combat power as the self record states it.
     pub fn note_self_combat_power(&self, name: &str, combat_power: i64) {
-        self.inner.write().self_combat_power = Some((name.to_string(), combat_power));
+        let mut inner = self.inner.write();
+        inner.self_combat_power = Some((name.to_string(), combat_power));
+        if combat_power > 0 {
+            inner.known_combat_power.insert(name.trim().to_string(), combat_power);
+        }
+    }
+
+    /// aion-copilot: remember `name`'s combat power (from the saved characters).
+    pub fn note_known_combat_power(&self, name: &str, combat_power: i64) {
+        if combat_power > 0 && !name.trim().is_empty() {
+            self.inner.write().known_combat_power.insert(name.trim().to_string(), combat_power);
+        }
+    }
+
+    /// aion-copilot: the gear score for `name`: the roster's, else the spawn's.
+    pub fn known_gear_score(&self, name: &str) -> Option<i32> {
+        let inner = self.inner.read();
+        let name = name.trim();
+        inner.party_members.get(name).map(|m| m.gear_score).filter(|&g| g > 0)
+            .or_else(|| stated_for(&inner.self_gear_score, Some(name)))
+
+    }
+
+    /// aion-copilot: every combat power seen, by name.
+    pub fn known_combat_powers(&self) -> HashMap<String, i64> {
+        self.inner.read().known_combat_power.clone()
+    }
+
+    /// aion-copilot: the last combat power seen for `name`, if any.
+    pub fn known_combat_power(&self, name: &str) -> Option<i64> {
+        self.inner.read().known_combat_power.get(name.trim()).copied()
     }
 
     /// Who you are playing, as far as the game has said: name, server, class
@@ -1317,6 +1483,18 @@ impl DataStorage {
         self.inner.read().game_host
     }
 
+    /// aion-copilot: a counters packet (`capture::counters`).
+    pub fn note_counters(&self, packet: crate::capture::counters::CounterPacket) {
+        let mut inner = self.inner.write();
+        let named = if inner.local_identity_from_game { inner.local_character_name.clone() } else { None };
+        inner.counters.note(packet, named.as_deref());
+    }
+
+    /// aion-copilot: the counters the game has sent, and whose they are.
+    pub fn counter_book(&self) -> crate::capture::counters::CounterBook {
+        self.inner.read().counters.clone()
+    }
+
     /// Whose the Odyle energy is, once the game has said (see `odyle_owner`).
     pub fn odyle_owner(&self) -> Option<String> {
         self.inner.read().odyle_owner.clone()
@@ -1337,6 +1515,49 @@ impl DataStorage {
                 self.damage_generation.fetch_add(1, Ordering::Relaxed);
             }
             return;
+        }
+
+        // aion-copilot: someone who keeps hitting after an HP of 0 was not
+        // dead (the in-place HP scan misread a 0, and on a training dummy no
+        // later HP reading comes to correct it): their own direct hit, past a
+        // moment, clears it.
+        if !pdp.is_dot() {
+            // The death was logged at processing time (now_ms), so compare on
+            // that clock: a packet's own time can trail it under heavy traffic.
+            let now = now_ms();
+            // Back up or not: the dead do not attack, and a real revive takes
+            // longer than this before the next blow.
+            if let Some(pos) = inner.death_log.iter().rposition(|d| {
+                d.0 == actor_id && now > d.1 + 300 && (d.2.is_none() || now - d.1 < Self::MISREAD_FULL_BACK_MS)
+            }) {
+                inner.death_log.remove(pos);
+                tracing::debug!("copilot-death cleared-by-hit id={}", actor_id);
+            }
+        }
+
+        // aion-copilot: who hit whom last, monsters and players alike, before
+        // player-on-player hits are taken for heals below.
+        if pdp.total_damage() > 0 {
+            let actor = summon_resolver::resolve(actor_id, &inner.summon_storage);
+            let target = summon_resolver::resolve(target_id, &inner.summon_storage);
+            if actor != target {
+                let now = now_ms();
+                inner.last_attacker.insert(target, (actor, skill_code, now));
+                // Its class too: a player's hits on players read as heals
+                // below, before the class is noted.
+                if is_player_skill(skill_code) && actor == actor_id && !inner.mob_storage.contains_key(&actor) {
+                    if let Some(job) = JobClass::convert_from_skill(skill_code) {
+                        inner.actor_jobs.entry(actor).or_insert(job);
+                    }
+                }
+                if inner.mob_storage.contains_key(&actor) {
+                    inner.last_npc_hit.insert(target, now);
+                }
+                if inner.last_attacker.len() > 4_096 {
+                    inner.last_attacker.retain(|_, v| now - v.2 < 60_000);
+                    inner.last_npc_hit.retain(|_, at| now - *at < 60_000);
+                }
+            }
         }
 
         // A tick from a spirit that has left the world: the game does not
@@ -1380,7 +1601,13 @@ impl DataStorage {
         }
 
         // Party healing: player-on-player damage is actually healing/buffs
-        if is_friendly_action(&inner, actor_id, target_id) {
+        // aion-copilot: an attack on a player outside your side is PvP.
+        let pvp = is_pvp_hit(&inner, actor_id, target_id, skill_code);
+        if pvp {
+            let target = summon_resolver::resolve(target_id, &inner.summon_storage);
+            inner.pvp_targets.insert(target);
+        }
+        if !pvp && is_friendly_action(&inner, actor_id, target_id) {
             let heal_amount = pdp.total_damage();
             if heal_amount > 0 {
                 if let Some(actor_data) = fight_of(&mut inner, actor_id, None) {
@@ -1399,6 +1626,11 @@ impl DataStorage {
                 e.ticks.push((pdp.timestamp(), heal_amount as i64));
             }
             return;
+        }
+
+        // aion-copilot: a player's skill on a monster is an attack.
+        if is_player_skill(skill_code) && inner.mob_storage.contains_key(&target_id) && inner.attack_skills.len() < 4_096 {
+            inner.attack_skills.insert(skill_code);
         }
 
         // Track hostile targets
@@ -1565,6 +1797,7 @@ impl DataStorage {
         inner.boss_hp_sent.remove(&entity_id);
         inner.dead_entity_ids.insert(entity_id);
         inner.hp_floored_ids.remove(&entity_id);
+        note_killer(&mut inner, entity_id);
         inner.death_log.push_back((entity_id, now_ms(), None));
         while inner.death_log.len() > MAX_DEATHS {
             inner.death_log.pop_front();
@@ -1573,18 +1806,40 @@ impl DataStorage {
 
     /// A party member's HP (`1b 92`). Dropping to 0 from above logs a death;
     /// coming back up (revived) arms the next one.
+    /// aion-copilot: an HP of 0 that is back above 0 sooner than this was a misread.
+    pub const MISREAD_DEATH_MS: i64 = 1_500;
+    /// aion-copilot: ... and so was one back within this long at the HP it had
+    /// before: a revive brings back part of it. Players around a field boss
+    /// read 0 and then their full HP again 3 to 6 s later, over and over
+    /// (hydraz: 16,419, twice in 30 s; 2026-10-18).
+    pub const MISREAD_FULL_BACK_MS: i64 = 10_000;
+
     pub fn note_hp(&self, entity_id: i32, hp: i32) {
         let mut inner = self.inner.write();
         let before = inner.last_hp.insert(entity_id, hp);
         if hp == 0 && before.is_some_and(|b| b > 0) {
+            if let Some(b) = before {
+                inner.hp_before_zero.insert(entity_id, b);
+            }
+            note_killer(&mut inner, entity_id);
             inner.death_log.push_back((entity_id, now_ms(), None));
             while inner.death_log.len() > MAX_DEATHS {
                 inner.death_log.pop_front();
             }
         } else if hp > 0 && before == Some(0) {
             let now = now_ms();
-            if let Some(death) = inner.death_log.iter_mut().rev().find(|d| d.0 == entity_id && d.2.is_none()) {
-                death.2 = Some(now);
+            if let Some(pos) = inner.death_log.iter().rposition(|d| d.0 == entity_id && d.2.is_none()) {
+                // aion-copilot: back up within moments is a misread HP of 0
+                // (the in-place HP scan can match inside other records), not a
+                // death: a revive takes a cast and an accept, seconds at least.
+                let after = now - inner.death_log[pos].1;
+                let had = inner.hp_before_zero.remove(&entity_id).unwrap_or(i32::MAX);
+                tracing::debug!("copilot-death back id={} after={}ms hp={} had={}", entity_id, after, hp, had);
+                if after < Self::MISREAD_DEATH_MS || (after < Self::MISREAD_FULL_BACK_MS && hp >= had) {
+                    inner.death_log.remove(pos);
+                } else {
+                    inner.death_log[pos].2 = Some(now);
+                }
             }
         }
     }
@@ -1632,6 +1887,11 @@ impl DataStorage {
         if inner.summon_storage.contains_key(&id) {
             inner.despawned_summon_ids.insert(id);
         }
+    }
+
+    /// aion-copilot: the last HP seen for `entity_id`, if any (Group overlay).
+    pub fn last_hp_of(&self, entity_id: i32) -> Option<i32> {
+        self.inner.read().last_hp.get(&entity_id).copied()
     }
 
     pub fn is_entity_dead(&self, entity_id: i32) -> bool {
@@ -1729,6 +1989,11 @@ impl DataStorage {
             return;
         }
         let mut inner = self.inner.write();
+        for (name, m) in &members {
+            if m.combat_power > 0 {
+                inner.known_combat_power.insert(name.trim().to_string(), m.combat_power);
+            }
+        }
         inner.party_roster_at_ms = now_ms();
         inner.party_placeholders_hidden = false;
         // The meter's rows name the party: someone joining between fights
@@ -1828,16 +2093,22 @@ impl DataStorage {
     /// A zone load named the map it loads (`21 36`). The map, once known, is
     /// what says where the player is; see `dungeon_of_map`.
     pub fn note_map_load(&self, map_id: i32) {
-        let mut inner = self.inner.write();
-        // A load hands out new entity ids: counts of the old ones would name
-        // an entity that is gone.
-        inner.loot_identity.scope_counts.clear();
-        inner.current_map_id = Some(map_id);
-        let dungeon = dungeon_of_map(inner.roster_dungeon_id, Some(map_id));
-        if dungeon != inner.current_dungeon_id {
-            tracing::debug!("Map {map_id}: dungeon {} -> {dungeon}", inner.current_dungeon_id);
-            inner.current_dungeon_id = dungeon;
+        {
+            let mut inner = self.inner.write();
+            // A load hands out new entity ids: counts of the old ones would name
+            // an entity that is gone.
+            inner.loot_identity.scope_counts.clear();
+            inner.current_map_id = Some(map_id);
+            let dungeon = dungeon_of_map(inner.roster_dungeon_id, Some(map_id));
+            if dungeon != inner.current_dungeon_id {
+                tracing::debug!("Map {map_id}: dungeon {} -> {dungeon}", inner.current_dungeon_id);
+                inner.current_dungeon_id = dungeon;
+            }
         }
+        // aion-copilot: the map's view of the old zone goes too. Taken after
+        // `inner` is released: `copilot_map::map_state` reads `inner` under
+        // this lock.
+        self.world.lock().note_load(now_ms());
     }
 
     /// The dungeon a party roster names. Taken as the player's only when no
@@ -2028,6 +2299,43 @@ impl DataStorage {
 
     pub fn get_summon_data(&self) -> HashMap<i32, i32> {
         self.inner.read().summon_storage.clone()
+    }
+
+    /// aion-copilot: the last hit `id` took: (attacker, skill, when in ms).
+    pub fn last_attacker_of(&self, id: i32) -> Option<(i32, i32, i64)> {
+        self.inner.read().last_attacker.get(&id).copied()
+    }
+
+    /// aion-copilot: the last hit an entity took before the death logged at
+    /// `at`: (attacker, when, when a monster last hit it).
+    pub fn killer_of(&self, id: i32, at: i64) -> Option<(i32, i64, i64)> {
+        self.inner.read().death_killers.iter().rev().find(|(d, _)| *d == (id, at)).map(|(_, k)| *k)
+    }
+
+    /// aion-copilot: the player `actor` hit last (summons count as their
+    /// owner's): (target, when).
+    pub fn last_player_hit_by(&self, actor: i32) -> Option<(i32, i64)> {
+        let inner = self.inner.read();
+        inner.last_attacker.iter()
+            .filter(|(t, (a, _, _))| *a == actor && inner.known_player_ids.contains(t) && !inner.mob_storage.contains_key(t))
+            .map(|(&t, &(_, _, at))| (t, at))
+            .max_by_key(|&(_, at)| at)
+    }
+
+    /// aion-copilot: the map the last zone load named.
+    pub fn current_map_id(&self) -> Option<i32> {
+        self.inner.read().current_map_id
+    }
+
+    /// aion-copilot: the players your side's attacks (or theirs on you) made
+    /// PvP targets.
+    pub fn pvp_target_ids(&self) -> HashSet<i32> {
+        self.inner.read().pvp_targets.clone()
+    }
+
+    /// aion-copilot: the class an entity's skills showed, if any.
+    pub fn actor_job_of(&self, id: i32) -> Option<JobClass> {
+        self.inner.read().actor_jobs.get(&id).copied()
     }
 
     pub fn get_known_player_ids(&self) -> HashSet<i32> {
@@ -2794,10 +3102,43 @@ fn fight_of(inner: &mut Inner, actor: i32, mob: Option<i32>) -> Option<&mut Acto
     inner.target_combat.get_mut(&tid)?.actors.get_mut(&actor)
 }
 
+/// aion-copilot: remember who last hit `entity_id`, as it dies now.
+fn note_killer(inner: &mut Inner, entity_id: i32) {
+    if let Some(&(attacker, _, at)) = inner.last_attacker.get(&entity_id) {
+        let npc_at = inner.last_npc_hit.get(&entity_id).copied().unwrap_or(i64::MIN / 2);
+        inner.death_killers.push_back(((entity_id, now_ms()), (attacker, at, npc_at)));
+        while inner.death_killers.len() > MAX_DEATHS {
+            inner.death_killers.pop_front();
+        }
+    }
+}
+
 fn is_friendly_action(inner: &Inner, actor_id: i32, target_id: i32) -> bool {
     let resolved_actor = summon_resolver::resolve(actor_id, &inner.summon_storage);
     let resolved_target = summon_resolver::resolve(target_id, &inner.summon_storage);
     inner.known_player_ids.contains(&resolved_actor) && inner.known_player_ids.contains(&resolved_target)
+        && !inner.pvp_targets.contains(&resolved_target)
+}
+
+/// aion-copilot: you or a member of your party, by id.
+fn is_our_side(inner: &Inner, id: i32) -> bool {
+    inner.local_player_id == Some(id as i64)
+        || inner.nickname_storage.get(&id).is_some_and(|n| inner.party_members.contains_key(n.trim()))
+}
+
+/// aion-copilot: a player's attack (a skill seen on monsters) landing on a
+/// player of the other side, by you or on you: PvP damage. Between you and
+/// your party, and between two others, it stays what the meter took it for.
+fn is_pvp_hit(inner: &Inner, actor_id: i32, target_id: i32, skill_code: i32) -> bool {
+    let actor = summon_resolver::resolve(actor_id, &inner.summon_storage);
+    let target = summon_resolver::resolve(target_id, &inner.summon_storage);
+    let you = inner.local_player_id.map(|v| v as i32);
+    actor != target
+        && you.is_some_and(|me| me == actor || me == target)
+        && inner.attack_skills.contains(&skill_code)
+        && inner.known_player_ids.contains(&actor)
+        && inner.known_player_ids.contains(&target)
+        && !(is_our_side(inner, actor) && is_our_side(inner, target))
 }
 
 /// Remove friendly-fire damage from aggregates when a new player is identified.

@@ -1,0 +1,201 @@
+{
+ "source": "tc-imba AION2 Interactive Map /public/data @ 89ce3984d569ff1a03ee6311d064231211212981",
+ "worlds": [
+  {
+   "id": 1010,
+   "key": "World_L_A",
+   "name": "Verteron",
+   "side": "light",
+   "sectors": [
+    -408000,
+    -408000,
+    8,
+    8,
+    102000
+   ],
+   "tiles": {
+    "name": "World_L_A",
+    "nx": 8,
+    "ny": 8
+   },
+   "markers": {
+    "monolith": 560,
+    "teleport": 61,
+    "seal": 61,
+    "occupation": 15,
+    "hiddenCube": 118,
+    "village": 4,
+    "battlefield": 22
+   },
+   "flags": []
+  },
+  {
+   "id": 1011,
+   "key": "World_L_B",
+   "name": "Eltnen",
+   "side": "light",
+   "sectors": [
+    -408000,
+    -408000,
+    8,
+    8,
+    102000
+   ],
+   "tiles": null,
+   "markers": {},
+   "flags": [
+    "semTiles"
+   ]
+  },
+  {
+   "id": 1110,
+   "key": "World_D_A",
+   "name": "Altgard",
+   "side": "dark",
+   "sectors": [
+    -408000,
+    -408000,
+    8,
+    8,
+    102000
+   ],
+   "tiles": {
+    "name": "World_D_A",
+    "nx": 8,
+    "ny": 8
+   },
+   "markers": {
+    "seal": 61,
+    "monolith": 560,
+    "occupation": 15,
+    "teleport": 61,
+    "hiddenCube": 108,
+    "village": 4,
+    "battlefield": 23
+   },
+   "flags": []
+  },
+  {
+   "id": 1111,
+   "key": "World_D_B",
+   "name": "Morheim",
+   "side": "dark",
+   "sectors": [
+    -408000,
+    -408000,
+    8,
+    8,
+    102000
+   ],
+   "tiles": null,
+   "markers": {},
+   "flags": [
+    "semTiles"
+   ]
+  },
+  {
+   "id": 1000,
+   "key": "World_L_Starter",
+   "name": "Poeta",
+   "side": "light",
+   "sectors": [
+    -204000,
+    -204000,
+    4,
+    4,
+    102000
+   ],
+   "tiles": {
+    "name": "World_L_Starter",
+    "nx": 4,
+    "ny": 4
+   },
+   "markers": {},
+   "flags": []
+  },
+  {
+   "id": 1100,
+   "key": "World_D_Starter",
+   "name": "Ishalgen",
+   "side": "dark",
+   "sectors": [
+    -329748,
+    -257999.78,
+    5,
+    5,
+    102000
+   ],
+   "tiles": {
+    "name": "World_D_Starter",
+    "nx": 5,
+    "ny": 5
+   },
+   "markers": {},
+   "flags": [
+    "setoresAssimetricos"
+   ]
+  },
+  {
+   "id": 20,
+   "key": "Abyss_Reshanta_A",
+   "name": "Piso Inferior do Abismo de Reshanta",
+   "side": "abyss",
+   "sectors": [
+    -204000,
+    -204000,
+    4,
+    4,
+    102000
+   ],
+   "tiles": {
+    "name": "Abyss_Reshanta_A",
+    "nx": 4,
+    "ny": 4
+   },
+   "markers": {
+    "monolith": 199
+   },
+   "flags": [
+    "projecaoConferida"
+   ]
+  },
+  {
+   "id": 22,
+   "key": "Abyss_Reshanta_C",
+   "name": "Piso Intermediário do Abismo de Reshanta",
+   "side": "abyss",
+   "sectors": [
+    -102000,
+    -102000,
+    2,
+    2,
+    102000
+   ],
+   "tiles": null,
+   "markers": {},
+   "flags": [
+    "semTiles",
+    "nomeDeduzido"
+   ]
+  },
+  {
+   "id": 23,
+   "key": "Abyss_Reshanta_D",
+   "name": "Piso Superior do Abismo de Reshanta",
+   "side": "abyss",
+   "sectors": [
+    -102000,
+    -102000,
+    2,
+    2,
+    102000
+   ],
+   "tiles": null,
+   "markers": {},
+   "flags": [
+    "semTiles",
+    "nomeDeduzido"
+   ]
+  }
+ ]
+}

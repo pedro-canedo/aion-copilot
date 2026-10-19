@@ -298,7 +298,14 @@ const createI18n = ({
     // The backend preference wins over stale localStorage on a newly opened window.
     if (window.A2_VIEW === "settings") await window.a2SettingsReady;
     const stored = safeGetStorage(storageKey);
-    await setLanguage(stored || defaultLanguage, { persist: false });
+    // aion-copilot: with nothing chosen yet, follow Windows' language
+    // ("pt-BR" -> "pt") when the meter has it.
+    const system = String(globalThis.navigator?.language || "").toLowerCase();
+    const fromSystem = supportedLanguages.find((lang) => system === lang.toLowerCase())
+      || supportedLanguages.find((lang) => system.split("-")[0] === lang.toLowerCase());
+    // Saved when it came from Windows, so the backend loads the game's names
+    // (skills, NPCs) in that language too.
+    await setLanguage(stored || fromSystem || defaultLanguage, { persist: !stored && !!fromSystem });
   };
 
   const onChange = (listener) => {

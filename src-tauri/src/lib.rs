@@ -27,6 +27,12 @@ pub mod account;
 #[cfg(feature = "desktop")]
 pub mod config;
 #[cfg(feature = "desktop")]
+pub mod copilot;
+#[cfg(feature = "desktop")]
+pub mod copilot_map;
+#[cfg(feature = "desktop")]
+pub mod copilot_pets;
+#[cfg(feature = "desktop")]
 pub mod history;
 #[cfg(feature = "desktop")]
 pub mod logging;
@@ -42,7 +48,7 @@ mod party_presence;
 mod presence;
 #[cfg(feature = "desktop")]
 pub mod share;
-#[cfg(feature = "online")]
+#[cfg(any(feature = "online", feature = "obs"))]
 pub mod stream_overlay;
 #[cfg(feature = "desktop")]
 mod npcap_setup;

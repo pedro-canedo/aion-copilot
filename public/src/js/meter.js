@@ -10,9 +10,9 @@ const partyStatText = (row, stat) => {
   const gearScoreText = gearScore > 0 ? gearScore.toLocaleString() : "";
   if (stat === "gearScore") return gearScoreText;
   const combatPower = Number(row?.combatPower) || 0;
-  const thousands = Math.round(combatPower / 1000);
-  const combatPowerText =
-    combatPower <= 0 ? "" : thousands > 0 ? `${thousands.toLocaleString()}k` : combatPower.toLocaleString();
+  // aion-copilot: as the game's HUD writes it ("105,8K", cut, not rounded);
+  // the full figure is the tooltip.
+  const combatPowerText = combatPower <= 0 ? "" : window.copilotCp?.(combatPower) ?? combatPower.toLocaleString();
   if (stat === "both") return [combatPowerText, gearScoreText].filter(Boolean).join(" · ");
   return combatPowerText;
 };
@@ -47,6 +47,27 @@ const isBrightColor = (value) => {
   brightBars.set(key, bright);
   return bright;
 };
+
+// aion-copilot: 3,05M / 556,3k in the UI's language, for the damage and heal columns.
+const compactAmount = (value) => {
+  const n = Number(value) || 0;
+  const lang = document.documentElement.lang || navigator.language || "en";
+  const fmt = (v, digits) =>
+    v.toLocaleString(lang, { minimumFractionDigits: digits, maximumFractionDigits: digits });
+  if (n >= 1e9) return `${fmt(n / 1e9, 2)}B`;
+  if (n >= 1e6) return `${fmt(n / 1e6, 2)}M`;
+  if (n >= 1e3) return `${fmt(n / 1e3, 1)}k`;
+  return String(Math.round(n));
+};
+
+const SKULL_SVG =
+  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" ' +
+  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a7 7 0 0 0-7 7c0 2.4 1.2 4.1 3 5.2V19h8v-3.8c1.8-1.1 3-2.8 3-5.2a7 7 0 0 0-7-7z"/>' +
+  '<circle cx="9.5" cy="10.5" r="1.3" fill="currentColor"/><circle cx="14.5" cy="10.5" r="1.3" fill="currentColor"/><path d="M10 19v2M14 19v2"/></svg>';
+const WINGS_SVG =
+  '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" ' +
+  'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21V9"/><path d="M12 9c-1.5-3-4.5-4.5-8-4 .5 3.5 3.5 6 8 6"/>' +
+  '<path d="M12 9c1.5-3 4.5-4.5 8-4-.5 3.5-3.5 6-8 6"/></svg>';
 
 const createMeterUI = ({
   elList,
@@ -146,13 +167,29 @@ const createMeterUI = ({
     combatPowerEl.className = "combatPower";
     combatPowerEl.style.display = "none";
 
+    // aion-copilot: deaths (skull) and revives (wings) beside the name.
+    const deathsEl = document.createElement("span");
+    deathsEl.className = "rowDeaths";
+    deathsEl.style.display = "none";
+    const revivesEl = document.createElement("span");
+    revivesEl.className = "rowRevives";
+    revivesEl.style.display = "none";
+
     const dpsContainer = document.createElement("div");
     const dpsNumber = document.createElement("p");
     dpsContainer.className = "dps";
     const dpsContribution = document.createElement("p");
     dpsContribution.className = "dpsContribution";
 
+    // aion-copilot columns: damage total, heal total, share.
+    const damageTotalEl = document.createElement("p");
+    damageTotalEl.className = "dmgTotal";
+    const healTotalEl = document.createElement("p");
+    healTotalEl.className = "healTotal";
+
     dpsContainer.appendChild(dpsNumber);
+    dpsContainer.appendChild(damageTotalEl);
+    dpsContainer.appendChild(healTotalEl);
     dpsContainer.appendChild(dpsContribution);
 
     contentEl.appendChild(rankEl);
@@ -160,6 +197,8 @@ const createMeterUI = ({
     contentEl.appendChild(nameEl);
     contentEl.appendChild(supporterBadgeEl);
     contentEl.appendChild(a2toolsBadgeEl);
+    contentEl.appendChild(deathsEl);
+    contentEl.appendChild(revivesEl);
     contentEl.appendChild(combatPowerEl);
     contentEl.appendChild(dpsContainer);
     rowEl.appendChild(fillTrackEl);
@@ -179,6 +218,10 @@ const createMeterUI = ({
       classIconImg,
       dpsNumber,
       dpsContribution,
+      damageTotalEl,
+      healTotalEl,
+      deathsEl,
+      revivesEl,
       fillEl,
       currentRow: null,
       lastSeenAt: 0,
@@ -349,6 +392,12 @@ const createMeterUI = ({
         view.lastIsUser = isUser;
       }
 
+      const isPartial = !!row.partial;
+      if (view.lastIsPartial !== isPartial) {
+        view.rowEl.classList.toggle("isPartial", isPartial);
+        view.rowEl.title = isPartial ? (window.i18n?.t?.("meter.partial", "Only their damage over time reaches you: at least this much") ?? "") : "";
+        view.lastIsPartial = isPartial;
+      }
       const isOthers = !!row.isOthers;
       if (view.lastIsOthers !== isOthers) {
         view.rowEl.classList.toggle("isOthers", isOthers);
@@ -399,6 +448,7 @@ const createMeterUI = ({
       const combatPowerText = partyStatText(row, getPartyStat?.());
       if (view.lastCombatPowerText !== combatPowerText) {
         view.combatPowerEl.textContent = combatPowerText;
+        view.combatPowerEl.title = Number(row.combatPower) > 0 ? `Combat Power ${Number(row.combatPower).toLocaleString(document.documentElement.lang || undefined)}` : "";
         view.combatPowerEl.style.display = combatPowerText ? "" : "none";
         view.lastCombatPowerText = combatPowerText;
       }
@@ -473,7 +523,39 @@ const createMeterUI = ({
         view.lastMetricText = metricText;
       }
 
-      const contributionText = `${damageContribution.toFixed(1)}%`;
+      // aion-copilot: the DPS metric puts DPS in the damage column.
+      const damageTotalText = document.documentElement.dataset.copilotMetric === "dps"
+        ? `${compactAmount(row.dps)}/s`
+        : compactAmount(row.totalDamage);
+      if (view.lastDamageTotalText !== damageTotalText) {
+        view.damageTotalEl.textContent = damageTotalText;
+        view.dpsContainer.title = metricText;
+        view.lastDamageTotalText = damageTotalText;
+      }
+      const healAmount = Number(row.healAmount) || 0;
+      const healTotalText = healAmount > 0 ? compactAmount(healAmount) : "—";
+      if (view.lastHealTotalText !== healTotalText) {
+        view.healTotalEl.textContent = healTotalText;
+        view.healTotalEl.classList.toggle("isEmpty", healAmount <= 0);
+        view.lastHealTotalText = healTotalText;
+      }
+      const deaths = Number(row.deaths) || 0;
+      const revives = Number(row.revives) || 0;
+      if (view.lastDeaths !== deaths) {
+        view.deathsEl.innerHTML = deaths > 0 ? `${SKULL_SVG}<span>${deaths}</span>` : "";
+        view.deathsEl.style.display = deaths > 0 ? "inline-flex" : "none";
+        view.deathsEl.title = window.i18n?.t?.("meter.deaths", "Deaths") ?? "Deaths";
+        view.lastDeaths = deaths;
+      }
+      if (view.lastRevives !== revives) {
+        view.revivesEl.innerHTML = revives > 0 ? `${WINGS_SVG}<span>${revives}</span>` : "";
+        view.revivesEl.style.display = revives > 0 ? "inline-flex" : "none";
+        view.revivesEl.title = window.i18n?.t?.("meter.revives", "Revived") ?? "Revived";
+        view.lastRevives = revives;
+      }
+
+      // aion-copilot: the share in the UI's language, like the other figures.
+      const contributionText = `${damageContribution.toLocaleString(document.documentElement.lang || undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
       if (view.lastContributionText !== contributionText) {
         view.dpsContribution.textContent = contributionText;
         view.lastContributionText = contributionText;

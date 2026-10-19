@@ -130,6 +130,8 @@ impl StreamProcessor {
         // The unconsumed tail (a frame still arriving) is its own region.
         let regions = super::framing::regions(&framing.frames, buffer.len());
         self.scan_records(buffer, &regions);
+        // aion-copilot: soul gains wait for every loot record of this read.
+        self.data_storage.settle_pet_souls();
 
         offset
     }
@@ -264,6 +266,12 @@ impl StreamProcessor {
         // Plugin decoders (`crate::plugins`); nothing when none is loaded.
         crate::capture::frame_tap::frame(packet);
 
+        // aion-copilot (developers only): the frames, to find new fields.
+        #[cfg(not(test))]
+        if copilot_dump_enabled() {
+            copilot_dump_frame(packet);
+        }
+
         // Buffs, debuffs and stats, recorded alongside (see `capture::abnormal`).
         self.data_storage.note_abnormal_packet(packet);
 
@@ -285,6 +293,16 @@ impl StreamProcessor {
         if let Some(map) = crate::capture::boss_map::parse(packet, crate::clock::now_ms()) {
             self.data_storage.note_boss_map(map);
         }
+        // aion-copilot: the game's counters, for the Routine (`capture::counters`).
+        if let Some(counters) = crate::capture::counters::parse(packet, crate::clock::now_ms()) {
+            self.data_storage.note_counters(counters);
+        }
+        // aion-copilot: your pet collection, for the pet radar (`capture::pets`).
+        if let Some(pets) = crate::capture::pets::parse(packet, crate::clock::now_ms()) {
+            self.data_storage.note_pet_packet(pets);
+        }
+        // aion-copilot: positions, for the map (`capture::world_position`).
+        self.data_storage.note_world_packet(packet);
 
         if !parsed_damage && !parsed_name && !parsed_summon && !parsed_ownership && !parsed_hp {
             self.parse_dot_packet(packet);
@@ -474,6 +492,7 @@ impl StreamProcessor {
 
         if flag_info.value == 3 {
             tracing::trace!("Death event: entity {} killed in combat", entity_id);
+            tracing::debug!("copilot-death src=4236 id={} name={:?}", entity_id, self.data_storage.get_nickname(entity_id));
             self.data_storage.mark_entity_dead(entity_id);
         }
         // Only under the current opcode: under the old one (`41 36`, now the
@@ -623,6 +642,9 @@ impl StreamProcessor {
         self.data_storage.append_mob_hp(actor_id, hp_max_info.value);
         // A party member's HP reaching 0 is how their death shows (Details'
         // DPS chart marks it).
+        if hp_info.value == 0 && self.data_storage.last_hp_of(actor_id).is_some_and(|h| h > 0) {
+            tracing::debug!("copilot-death src=1b92 id={} name={:?}", actor_id, self.data_storage.get_nickname(actor_id));
+        }
         self.data_storage.note_hp(actor_id, hp_info.value);
 
         true
@@ -702,6 +724,9 @@ impl StreamProcessor {
                     self.data_storage.set_mob_current_hp(id_info.value, cur as i32);
                     // The same record carries players' HP, your own included
                     // (`1b 92` has only the party's): their deaths and revives.
+                    if cur == 0 && self.data_storage.last_hp_of(id_info.value).is_some_and(|h| h > 0) {
+                        tracing::debug!("copilot-death src=scan id={} name={:?} ctx={:02x?}", id_info.value, self.data_storage.get_nickname(id_info.value), &data[i.saturating_sub(12)..(disc + 16).min(data.len())]);
+                    }
                     self.data_storage.note_player_hp(id_info.value, cur as i32);
                 }
                 i = disc + 11;
@@ -727,6 +752,12 @@ impl StreamProcessor {
                 && self.data_storage.note_loot_owner(summon_id, owner_id, name)
             {
                 tracing::info!("loot record: local player '{}' -> entity {}", name, owner_id);
+            }
+            // aion-copilot: a monster's loot owner (after the line above may
+            // have said who you are), for the pet radar's species -> pet
+            // links (`DataStorage::note_corpse_owner`).
+            if !self.data_storage.is_confirmed_summon(summon_id) {
+                self.data_storage.note_corpse_owner(summon_id, owner_id, name);
             }
         }
         !records.is_empty()
@@ -898,6 +929,23 @@ impl StreamProcessor {
                 }
             } else {
                 tracing::debug!("player record: '{}' -> entity {}", sanitized, id);
+                // aion-copilot (developers only): every other player's record,
+                // raw, in %TEMP%\copilot-spawns.txt, to find new fields.
+                #[cfg(not(test))]
+                if copilot_dump_enabled() {
+                    use std::io::Write as _;
+                    let rest = data.get(after..(after + 1600).min(data.len())).unwrap_or_default();
+                    let hex: String = rest.iter().map(|b| format!("{b:02x}")).collect();
+                    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true)
+                        .open(std::env::temp_dir().join("copilot-spawns.txt"))
+                    {
+                        let _ = writeln!(f, "{}|{}|{}|{}", crate::clock::now_ms(), sanitized, id, hex);
+                    }
+                }
+                // aion-copilot: their combat power, at the record's end.
+                if let Some(cp) = spawn_combat_power(data.get(after..).unwrap_or_default()) {
+                    self.data_storage.note_known_combat_power(&sanitized, cp);
+                }
             }
         }
     }
@@ -2815,13 +2863,62 @@ struct MaskedRecord {
     profile: Option<(u16, Option<JobClass>)>,
 }
 
+/// aion-copilot (developers only): record the server frames to %TEMP% to
+/// find new fields against known values. Debug builds, or AION_COPILOT_DUMP=1;
+/// never in tests.
+#[cfg(not(test))]
+fn copilot_dump_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| cfg!(debug_assertions) || std::env::var("AION_COPILOT_DUMP").is_ok_and(|v| v == "1"))
+}
+
+/// aion-copilot (developers only): one line per frame in
+/// `%TEMP%\copilot-frames.txt` (time, opcode, bytes), all but hits and ticks.
+#[cfg(not(test))]
+fn copilot_dump_frame(packet: &[u8]) {
+    let start = read_varint(packet, 0);
+    if start.length <= 0 {
+        return;
+    }
+    let op = packet.get(start.length as usize..start.length as usize + 2).unwrap_or_default();
+    if op == [0x04, 0x38] || op == [0x05, 0x38] || packet.len() < 8 {
+        return;
+    }
+    use std::io::Write as _;
+    // One line, one write, under one lock: two processors (a replay and
+    // the live capture) must not interleave their lines.
+    static FRAMES: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let path = std::env::temp_dir().join("copilot-frames.txt");
+    if std::fs::metadata(&path).map_or(true, |m| m.len() < 300_000_000) {
+        let hex: String = packet.iter().map(|b| format!("{b:02x}")).collect();
+        let line = format!("{}|{:02x}{:02x}|{}\n", crate::clock::now_ms(), op.first().unwrap_or(&0), op.get(1).unwrap_or(&0), hex);
+        let _guard = FRAMES.lock();
+        if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(&path) {
+            let _ = f.write_all(line.as_bytes());
+        }
+    }
+}
+
+/// aion-copilot: another player's combat power, from their record (`45 36`).
+/// It ends with `21 f4 cb 1f`, two u32 and the combat power as a u64 (and one
+/// byte): 75,749 for Suzuya, as the Shugo app showed it (2026-10-18); 61,446
+/// for Danóka, 78,238 for ILoveBPD.
+fn spawn_combat_power(rest: &[u8]) -> Option<i64> {
+    const MARK: [u8; 4] = [0x21, 0xf4, 0xcb, 0x1f];
+    let at = rest.windows(4).position(|w| w == MARK)?;
+    let cp = u64::from_le_bytes(rest.get(at + 12..at + 20)?.try_into().ok()?);
+    (1..100_000_000).contains(&cp).then_some(cp as i64)
+}
+
 /// Every masked identity record in `data`:
 /// `<opcode 2B> <entity_id varint> <mask1 u32 LE> <mask2 u8> [mask2 & 0x01] <len u8><utf8 name>`.
 /// Your combat power, from the self record's end: two u64 (the first is the
 /// character sheet's: 109,396 for Nullception on 2026-10-16, and 27,564 for
-/// Nully) right before a count of 5 and the entries keyed 01 to 05 (a u16
+/// Nully, and 105,853 for ELLAO on 2026-10-18, confirmed against the sheet)
+/// right before a count of 5 and the entries keyed 01 to 05 (a u16
 /// each). What comes before them varies (a legion name, buffs), so they are
-/// found by what follows. The second u64 is a little higher, or the same.
+/// found by what follows. The second u64 is a little higher, or the same
+/// (105,893 for ELLAO: not what the sheet shows).
 fn self_combat_power(rest: &[u8]) -> Option<i64> {
     let u64_at = |at: usize| rest.get(at..at + 8).map(|b| u64::from_le_bytes(b.try_into().unwrap()));
     (0..rest.len().saturating_sub(32)).find_map(|p| {
@@ -3809,6 +3906,22 @@ mod tests {
         assert_eq!(storage.odyle_energy(), Some((0, 1995)));
     }
 
+    /// aion-copilot: the same login list fills the counters (`capture::counters`)
+    /// and leaves the meter's own Odyle energy reading as it was; an update
+    /// changes both.
+    #[test]
+    fn the_login_list_fills_the_counters_and_the_odyle_energy_alike() {
+        let (storage, mut p) = processor();
+        p.parse_perfect_packet(&hex(include_str!("testdata/counters_list_v1.hex").trim()));
+        assert_eq!(storage.odyle_energy(), Some((30, 840)));
+        let book = storage.counter_book();
+        assert_eq!(book.counters.len(), 73);
+        assert_eq!(book.get(3).map(|c| c.time_ms), Some(18_596_000));
+        p.parse_perfect_packet(&hex("140c61010c018793031ef0060128000000"));
+        assert_eq!(storage.odyle_energy(), Some((30, 880)));
+        assert_eq!(storage.counter_book().get(60_000_001).map(|c| (c.count, c.charged)), Some((30, 880)));
+    }
+
     #[test]
     fn odyle_energy_without_charged_energy_is_read() {
         let (storage, mut p) = processor();
@@ -4295,6 +4408,18 @@ mod tests {
         let me = storage.local_profile();
         assert_eq!(me.name.as_deref(), Some("Nully"));
         assert_eq!((me.level, me.gear_score, me.combat_power), (Some(35), Some(426), Some(27_564)));
+    }
+
+    /// aion-copilot: another player's record ends with their combat power.
+    #[test]
+    fn another_players_combat_power_ends_their_record() {
+        // Suzuya's record end (2026-10-18): the Shugo app showed 75,749.
+        let tail = [
+            0x00, 0x00, 0x00, 0x02, 0x21, 0xf4, 0xcb, 0x1f, 0x45, 0x04, 0x00, 0x00, 0x12, 0x00, 0x00, 0x00,
+            0xe5, 0x27, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ];
+        assert_eq!(spawn_combat_power(&tail), Some(75_749));
+        assert_eq!(spawn_combat_power(&tail[..18]), None, "cut short");
     }
 
     /// The end of Nullception's self record while in a legion (2026-10-14):

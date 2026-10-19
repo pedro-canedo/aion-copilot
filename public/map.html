@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="pt-BR" class="copilot">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>aion-copilot — Mapa</title>
+    <link href="/src/routine.css" rel="stylesheet" type="text/css" />
+    <link href="/src/map.css" rel="stylesheet" type="text/css" />
+  </head>
+  <body>
+    <section class="panel mapPanel" aria-label="Mapa">
+      <header class="head" data-drag>
+        <div class="title">
+          <span class="kicker">Mapa</span>
+          <button type="button" class="worldBtn" aria-haspopup="menu" aria-expanded="false" title="Escolher o mapa">
+            <span class="eyebrow worldName">—</span>
+            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+        </div>
+        <div class="tools">
+          <button type="button" class="layersBtn" aria-expanded="false" title="Camadas do mapa">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg>
+            <span class="layersCount">0 camadas</span>
+          </button>
+          <label class="quickOpacity" title="Transparência">
+            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/><path d="M12 20a6 6 0 0 0 6-6H6" fill="currentColor" opacity="0.35"/></svg>
+            <input class="opacityInput" type="range" min="0" max="100" step="5" value="55" aria-label="Transparência do fundo" />
+          </label>
+          <span class="grip" title="Arraste para mover" data-drag aria-hidden="true"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+          <button type="button" class="iconBtn lockBtn" aria-label="Travar posição" title="Travar posição"></button>
+          <button type="button" class="iconBtn closeBtn" aria-label="Fechar" title="Fechar"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+      </header>
+
+      <div class="worldMenu" role="menu" hidden></div>
+
+      <div class="mapWrap">
+        <canvas class="mapCanvas" aria-label="Mapa com a sua posição e as camadas escolhidas"></canvas>
+        <span class="compass isN" aria-hidden="true">N</span>
+        <span class="compass isS" aria-hidden="true">S</span>
+        <span class="compass isE" aria-hidden="true">L</span>
+        <span class="compass isW" aria-hidden="true">O</span>
+
+        <div class="mapNote" hidden></div>
+
+        <div class="mapEmpty" hidden>
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg>
+          <b class="emptyTitle"></b>
+          <span class="emptyText"></span>
+          <button type="button" class="emptyPick" hidden>Escolher o mapa</button>
+        </div>
+
+        <div class="mapControls">
+          <button type="button" class="ctl followBtn" aria-pressed="true" title="Centralizar em mim">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2.2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+          </button>
+          <button type="button" class="ctl zoomIn" aria-label="Aproximar" title="Aproximar">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          </button>
+          <button type="button" class="ctl zoomOut" aria-label="Afastar" title="Afastar">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>
+          </button>
+        </div>
+
+        <ul class="legend" aria-label="Legenda">
+          <li><i class="lgMe"></i>você</li>
+          <li><i class="lgGuess"></i>estimada</li>
+          <li><i class="lgLearned"></i>aprendido</li>
+          <li><i class="lgLive"></i>em vista</li>
+        </ul>
+
+        <div class="mapTip" role="tooltip" hidden></div>
+
+        <div class="mapAsk" role="menu" aria-label="O que é isto?" hidden></div>
+
+        <aside class="layersPanel" aria-label="Camadas" hidden>
+          <div class="lpHead">
+            <span class="lpTitle">Camadas</span>
+            <button type="button" class="lpLink lpAll">Mostrar tudo</button>
+            <button type="button" class="lpLink lpNone">Ocultar tudo</button>
+            <button type="button" class="iconBtn lpClose" aria-label="Fechar camadas" title="Fechar"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+          </div>
+          <div class="lpGroups"></div>
+        </aside>
+      </div>
+
+      <footer class="mapFoot">
+        <p class="accuracyNote">Quando estimada, sua posição é aproximada (cerca de 20 a 30 m).</p>
+        <p class="devLine" hidden></p>
+        <p class="credit">Mapa: tc-imba AION2 Interactive Map (CC BY-NC 4.0); arte © NCSOFT</p>
+      </footer>
+      <span class="resizeGrip" title="Arraste para redimensionar" aria-hidden="true"><svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M20 10L10 20M20 16l-4 4"/></svg></span>
+    </section>
+    <script src="/src/js/overlayChrome.js"></script>
+    <script src="/src/js/mapTiles.js"></script>
+    <script src="/src/js/map.js"></script>
+  </body>
+</html>

@@ -85,6 +85,20 @@ pub fn find_aion2_window_title() -> Option<String> {
 }
 
 /// Check if the AION 2 game window is currently running.
+/// aion-copilot: the process id of the running game (its window), if any.
+pub fn aion2_pid() -> Option<u32> {
+    top_level_windows().into_iter().find_map(|hwnd| {
+        let title = window_title(hwnd);
+        let is_game = is_game_title(&title) || exe_path(hwnd).is_some_and(|p| is_game_exe(&p));
+        if !is_game {
+            return None;
+        }
+        let mut pid: u32 = 0;
+        unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
+        (pid != 0).then_some(pid)
+    })
+}
+
 pub fn find_aion2_window() -> bool {
     find_aion2_window_title().is_some()
 }

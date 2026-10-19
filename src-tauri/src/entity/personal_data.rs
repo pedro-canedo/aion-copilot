@@ -42,6 +42,21 @@ pub struct PersonalData {
     pub hps: f64,
     #[serde(default)]
     pub heal_amount: f64,
+    /// Times this player died in the fight window (aion-copilot).
+    #[serde(default)]
+    pub deaths: u32,
+    /// Of those deaths, how many ended in a revive (aion-copilot).
+    #[serde(default)]
+    pub revives: u32,
+    /// Someone outside your party on an open-world boss: the server sends only
+    /// their damage over time, so the row is a floor, not their total
+    /// (aion-copilot).
+    #[serde(default)]
+    pub partial: bool,
+    /// The Others row: how many players outside the rows were seen hitting
+    /// the boss (a floor: some send nothing this meter sees).
+    #[serde(default)]
+    pub others_count: u32,
 }
 
 impl PersonalData {
@@ -60,6 +75,10 @@ impl PersonalData {
             is_others: false,
             hps: 0.0,
             heal_amount: 0.0,
+            deaths: 0,
+            revives: 0,
+            partial: false,
+            others_count: 0,
         }
     }
 
@@ -78,6 +97,10 @@ impl PersonalData {
             is_others: false,
             hps: 0.0,
             heal_amount: 0.0,
+            deaths: 0,
+            revives: 0,
+            partial: false,
+            others_count: 0,
         }
     }
 

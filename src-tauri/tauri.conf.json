@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "A2Tools DPS Meter",
-  "version": "2.0.70",
-  "identifier": "com.a2tools.dps-meter",
+  "productName": "aion-copilot",
+  "version": "1.0.0",
+  "identifier": "com.aioncopilot.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "A2Tools DPS Meter",
+        "title": "aion-copilot",
         "width": 400,
         "height": 300,
         "decorations": false,
@@ -29,8 +29,8 @@
         "script-src": "'self' 'unsafe-hashes' 'sha256-MhtPZXr7+LpJUY5qtMutB+qWfQtMaPccfe7QXtCcEYc=' 'sha256-E0wk1DOvyUPgKrx0o/UNs4cZQIUvB5heAW8Cz3IMQH0=' 'sha256-j4VbX71+GbO3b2jDDBol0yaFLV7EorWC6xbgZBPKmMk=' 'sha256-pwQduWxX3Cm7lLbQmAos7n73RLP4QrsCDFejmsBdZ78='",
         "style-src": "'self' 'unsafe-inline'",
         "font-src": "'self' data:",
-        "img-src": "'self' data: blob: https://assets.playnccdn.com",
-        "connect-src": "'self' ipc: http://ipc.localhost https://assets.playnccdn.com",
+        "img-src": "'self' data: blob: https://assets.playnccdn.com https://aion2-interactive-map.github.io",
+        "connect-src": "'self' ipc: http://ipc.localhost https://assets.playnccdn.com https://aion2-interactive-map.github.io",
         "object-src": "'none'",
         "base-uri": "'none'",
         "frame-src": "http://a2plugin.localhost a2plugin://localhost",
@@ -41,19 +41,23 @@
         "script-src": "'self' 'unsafe-hashes' 'sha256-MhtPZXr7+LpJUY5qtMutB+qWfQtMaPccfe7QXtCcEYc=' 'sha256-E0wk1DOvyUPgKrx0o/UNs4cZQIUvB5heAW8Cz3IMQH0=' 'sha256-j4VbX71+GbO3b2jDDBol0yaFLV7EorWC6xbgZBPKmMk=' 'sha256-pwQduWxX3Cm7lLbQmAos7n73RLP4QrsCDFejmsBdZ78='",
         "style-src": "'self' 'unsafe-inline'",
         "font-src": "'self' data:",
-        "img-src": "'self' data: blob: https://assets.playnccdn.com",
-        "connect-src": "'self' ipc: http://ipc.localhost https://assets.playnccdn.com ws://localhost:1420",
+        "img-src": "'self' data: blob: https://assets.playnccdn.com https://aion2-interactive-map.github.io",
+        "connect-src": "'self' ipc: http://ipc.localhost https://assets.playnccdn.com https://aion2-interactive-map.github.io ws://localhost:1420",
         "object-src": "'none'",
         "base-uri": "'none'",
         "frame-src": "http://a2plugin.localhost a2plugin://localhost",
         "form-action": "'none'"
       },
-      "dangerousDisableAssetCspModification": ["style-src"]
+      "dangerousDisableAssetCspModification": [
+        "style-src"
+      ]
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["msi"],
+    "targets": [
+      "nsis"
+    ],
     "resources": [
       "../src/data"
     ],
@@ -70,7 +74,16 @@
         "template": "wix/main.wxs"
       },
       "webviewInstallMode": {
-        "type": "skip"
+        "type": "embedBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "installerHooks": "windows/hooks.nsh",
+        "languages": [
+          "PortugueseBR"
+        ],
+        "displayLanguageSelector": false
       }
     },
     "linux": {
@@ -82,5 +95,6 @@
         "postInstallScript": "../packaging/linux/postinst.sh"
       }
     }
-  }
+  },
+  "mainBinaryName": "aion-copilot"
 }

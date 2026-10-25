@@ -28,3 +28,6 @@ pub mod window_startup;
 pub mod hotkeys;
 #[path = "../unsupported/shell.rs"]
 pub mod shell;
+// aion-copilot: not ported yet.
+#[path = "../unsupported/copilot.rs"]
+pub mod copilot;

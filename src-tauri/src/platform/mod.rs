@@ -37,8 +37,9 @@ pub mod kwin_rules;
 pub mod procfs;
 pub mod screenshot;
 
+// aion-copilot: `copilot` holds what its own features need from the OS.
 pub use os::{
-    admin, clock, dialog, discord_ipc, pcap, process, secret, shell, updater, window, window_detector, window_rules, window_startup,
+    admin, clock, copilot, dialog, discord_ipc, pcap, process, secret, shell, updater, window, window_detector, window_rules, window_startup,
 };
 
 pub use os::atomic_file;

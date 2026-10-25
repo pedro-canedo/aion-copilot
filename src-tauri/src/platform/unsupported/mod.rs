@@ -6,6 +6,8 @@
 pub mod admin;
 pub mod atomic_file;
 pub mod clock;
+// aion-copilot
+pub mod copilot;
 pub mod dialog;
 pub mod discord_ipc;
 pub mod hotkeys;

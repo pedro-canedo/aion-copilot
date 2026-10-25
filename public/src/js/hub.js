@@ -1,5 +1,7 @@
 // aion-copilot: the bar — always on screen. One icon per overlay turns it on
-// or off; the mark opens the Painel; the arrow folds it down to the mark.
+// or off; the mark opens the Painel; the arrow folds it down to the mark. A
+// pill says when this version's Novidades are unread or a newer version is
+// out, and opens the Painel there.
 (() => {
   const tauri = window.__TAURI__;
   const invoke = (cmd, args) => (tauri?.core?.invoke ? tauri.core.invoke(cmd, args) : Promise.resolve(null));
@@ -30,6 +32,8 @@
   const menu = document.querySelector(".menu");
   const moreBtn = document.querySelector(".moreBtn");
   const collapseBtn = document.querySelector(".collapse");
+  const pillBox = document.querySelector(".pills");
+  const bus = window.copilotBus;
   let states = {};
 
   const store = {
@@ -144,6 +148,14 @@
   });
 
   const openPainel = () => invoke("toggle_copilot_overlay", { label: "painel" }).then(refresh);
+  // The Painel on one of its views: it reads the view from this setting at
+  // start, or hears it while open (a toggle would close it then).
+  const openPainelAt = async (view) => {
+    await bus?.settings.set("copilot.painel.view", view);
+    const s = await invoke("copilot_overlay_states").catch(() => null);
+    if (!s?.painel) await invoke("toggle_copilot_overlay", { label: "painel" }).catch(() => {});
+    await refresh();
+  };
   document.querySelector(".painelBtn").addEventListener("click", openPainel);
   document.querySelector(".brand").addEventListener("click", openPainel);
   document.querySelector(".settingsOpt").addEventListener("click", () => {
@@ -165,6 +177,59 @@
     if (!event.target.closest("[data-drag]") || event.target.closest("button")) return;
     event.preventDefault();
     invoke("start_tool_drag").catch(() => {});
+  });
+
+  // The pills (whatsNewCore.js decides which).
+  let whatsNew = null;
+  let update = null;
+  const renderPills = () => {
+    const pills = window.copilotWhatsNew?.hubPills(whatsNew, update) || [];
+    pillBox.replaceChildren(...pills.map((p) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = `pill ${p.kind}`;
+      b.textContent = p.text;
+      b.dataset.tip = p.kind === "news" ? "<b>Novidades</b> · o que mudou nesta versão" : "<b>Atualização</b> · veja em Ajustes";
+      b.addEventListener("click", () => openPainelAt(p.view));
+      return b;
+    }));
+    pillBox.hidden = !pills.length;
+    hub.classList.toggle("hasPills", pills.length > 0);
+    renderVersion();
+    fit();
+  };
+  // The installed version on the bar; in the menu, how updates are going.
+  const verTag = document.querySelector(".ver");
+  const brand = document.querySelector(".brand");
+  const renderVersion = () => {
+    const W = window.copilotWhatsNew;
+    const current = update?.current || whatsNew?.current || "";
+    verTag.textContent = current ? `v${current}` : "";
+    verTag.hidden = !current;
+    brand.title = current ? `Abrir o Painel · aion-copilot v${current}` : "Abrir o Painel";
+    document.querySelector(".updateOptTitle").textContent = current ? `Versão ${current}` : "Atualizações";
+    document.querySelector(".updateOptLine").textContent = update && W ? W.updateLine(update).text : "—";
+  };
+  document.querySelector(".updateOpt").addEventListener("click", () => {
+    setMenu(false);
+    openPainelAt("ajustes");
+  });
+  invoke("copilot_whats_new").then((w) => {
+    if (w) whatsNew = { current: w.current, lastSeen: w.lastSeen };
+    renderPills();
+  }).catch(() => {});
+  invoke("copilot_update_status").then((s) => {
+    if (s) update = s;
+    renderPills();
+  }).catch(() => {});
+  bus?.listen("copilot-update-status", (s) => {
+    update = s;
+    renderPills();
+  });
+  // Read in the Painel.
+  bus?.settings.on("copilot.lastSeenVersion", (v) => {
+    if (whatsNew && v) whatsNew.lastSeen = v;
+    renderPills();
   });
 
   setCollapsed(store.get("copilot.hubCollapsed") === "true");

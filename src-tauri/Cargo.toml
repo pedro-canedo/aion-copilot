@@ -34,6 +34,9 @@ default = ["desktop", "online"]
 # aion-copilot: the OBS stream overlay (a local HTTP server) without any of
 # the online services, for the personal offline build.
 obs = ["desktop", "dep:urlencoding"]
+# aion-copilot: updates from the fork's own GitHub releases (copilot_update.rs),
+# with an HTTP client but none of the online services.
+selfupdate = ["desktop", "dep:reqwest", "dep:futures-util"]
 online = [
     "desktop",
     "dep:reqwest",
@@ -138,6 +141,9 @@ flate2 = { version = "1.1.10", optional = true }
 # Evidence slices are compressed with zstd (share::compress_slice); the log
 # service reads it with a pure-Rust decoder.
 zstd = { version = "0.13", default-features = false, optional = true }
+# aion-copilot: comparing versions (the update check, the changelog). Already
+# in the tree through Tauri.
+semver = "1"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.59", features = [
@@ -160,6 +166,8 @@ windows = { version = "0.59", features = [
     "Win32_System_Com",
     "Win32_UI_Shell",
     "Win32_UI_Shell_Common",
+    # aion-copilot: PlaySoundW, for the alert sounds.
+    "Win32_Media_Audio",
 ] }
 
 # Desktop-only, so optional and enabled by `desktop`: the log service builds

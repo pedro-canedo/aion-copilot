@@ -1,0 +1,205 @@
+/* aion-copilot · the bar: ice-blue glass, one icon per overlay, collapsible. */
+html, body { margin: 0; background: transparent; overflow: hidden; }
+.hub { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 2px; }
+
+.bar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 40px;
+  box-sizing: border-box;
+  padding: 0 4px 0 2px;
+  border-radius: 13px;
+  border: 1px solid rgba(143, 211, 255, 0.28);
+  background:
+    linear-gradient(180deg, rgba(143, 211, 255, 0.10), rgba(143, 211, 255, 0) 60%),
+    rgba(10, 16, 21, 0.86);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.35),
+    0 8px 22px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  cursor: grab;
+  white-space: nowrap;
+}
+/* A thin light along the top edge: the bar's signature. */
+.bar::before {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  top: -1px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(143, 211, 255, 0.9), transparent);
+  pointer-events: none;
+}
+
+.grip { display: inline-flex; width: 16px; justify-content: center; color: rgba(159, 183, 196, 0.6); }
+.grip:hover { color: var(--text); }
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0 8px 0 3px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+.brand:hover { background: rgba(143, 211, 255, 0.08); }
+.mark {
+  position: relative;
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+}
+.mark::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 10px;
+  background: radial-gradient(closest-side, rgba(143, 211, 255, 0.45), transparent);
+  z-index: -1;
+}
+.mark img { width: 26px; height: 26px; border-radius: 7px; }
+.word { font-weight: 600; font-size: 13px; letter-spacing: 0.01em; }
+.word b { color: var(--accent); font-weight: 700; }
+.ver { margin-left: -2px; font: 500 10.5px "JetBrains Mono", ui-monospace, monospace; color: var(--sub); }
+.ver[hidden] { display: none; }
+
+.tools { display: inline-flex; align-items: center; gap: 2px; }
+.group { display: inline-flex; align-items: center; gap: 2px; }
+.sep { width: 1px; height: 20px; margin: 0 5px; background: linear-gradient(transparent, rgba(143, 211, 255, 0.3), transparent); }
+
+.tool {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: rgba(201, 219, 229, 0.72);
+  cursor: pointer;
+  transition: background 120ms, color 120ms;
+}
+.tool svg { width: 17px; height: 17px; }
+.tool:hover { background: rgba(255, 255, 255, 0.07); color: var(--text); }
+.tool[aria-pressed="true"] {
+  color: var(--accent);
+  background: rgba(143, 211, 255, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(143, 211, 255, 0.35), 0 0 12px rgba(143, 211, 255, 0.18);
+}
+.tool[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  bottom: 3px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}
+.tool[aria-expanded="true"] { color: var(--accent); background: rgba(143, 211, 255, 0.14); }
+.tool.soon { opacity: 0.38; cursor: default; }
+
+.collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 30px;
+  margin-left: 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(159, 183, 196, 0.8);
+  cursor: pointer;
+}
+.collapse svg { width: 14px; height: 14px; transition: transform 160ms; }
+.collapse:hover { background: rgba(255, 255, 255, 0.07); color: var(--text); }
+
+/* Collapsed: the mark, the name and the arrow to open it again. */
+.hub.isCollapsed .tools { display: none; }
+.hub.isCollapsed .collapse svg { transform: rotate(180deg); }
+
+.tip {
+  align-self: flex-start;
+  padding: 5px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(143, 211, 255, 0.25);
+  background: rgba(10, 16, 21, 0.95);
+  color: var(--text);
+  font-size: 12px;
+  pointer-events: none;
+}
+.tip b { color: var(--accent); font-weight: 600; }
+
+.menu {
+  align-self: flex-end;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 260px;
+  padding: 5px;
+  border-radius: 12px;
+  border: 1px solid rgba(143, 211, 255, 0.25);
+  background: rgba(10, 16, 21, 0.96);
+}
+.menu[hidden], .tip[hidden] { display: none; }
+.opt {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.opt:hover { background: rgba(255, 255, 255, 0.06); }
+.opt small { display: block; font-size: 11px; color: var(--sub); }
+.switch { width: 30px; height: 18px; border-radius: 999px; background: rgba(255, 255, 255, 0.14); position: relative; transition: background 120ms; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: #c9dbe5; transition: transform 120ms; }
+.opt[aria-checked="true"] .switch { background: var(--accent); }
+.opt[aria-checked="true"] .switch::after { transform: translateX(12px); background: #0e1318; }
+
+/* Pills: this version's notes unread, a newer version out. Folded, a dot on the mark says so. */
+.pills { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; }
+.pills[hidden] { display: none; }
+.pill {
+  height: 24px;
+  padding: 0 9px;
+  border: 1px solid rgba(143, 211, 255, 0.4);
+  border-radius: 999px;
+  background: rgba(143, 211, 255, 0.12);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.pill:hover { background: rgba(143, 211, 255, 0.22); }
+.pill.update { border-color: rgba(143, 224, 168, 0.45); background: rgba(143, 224, 168, 0.12); color: var(--done); }
+.pill.update:hover { background: rgba(143, 224, 168, 0.22); }
+.hub.isCollapsed .pills { display: none; }
+.hub.isCollapsed.hasPills .mark::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}

@@ -20,9 +20,12 @@
         <button type="button" class="navBtn" data-view="pvp">PvP</button>
         <button type="button" class="navBtn" data-view="rotina">Rotina</button>
         <button type="button" class="navBtn" data-view="chefes">Chefes de campo</button>
+        <button type="button" class="navBtn" data-view="novidades">Novidades<span class="navDot" hidden></span></button>
+        <button type="button" class="navBtn" data-view="ajustes">Ajustes</button>
       </nav>
       <div class="sideFoot">
         <span class="status"><span class="dot"></span><span class="statusText">—</span></span>
+        <button type="button" class="appVersion" data-goto="ajustes" hidden></button>
       </div>
     </aside>
 
@@ -138,7 +141,71 @@
         <div class="viewHead"><h1>Chefes de campo</h1><p class="lede">Do último mapa aberto no jogo (M).</p><button type="button" class="pillBtn" data-overlay="bosses">Abrir overlay</button></div>
         <ul class="bossList"></ul>
       </section>
+
+      <!-- Novidades -->
+      <section class="view" data-view="novidades" hidden>
+        <div class="viewHead"><h1>Novidades</h1><p class="lede">O que mudou em cada versão do aion-copilot.</p></div>
+        <div class="updateCard" hidden>
+          <span class="updateCardText"></span>
+          <button type="button" class="pillBtn updateNowBtn">Atualizar agora</button>
+        </div>
+        <div class="versions"></div>
+      </section>
+
+      <!-- Ajustes -->
+      <section class="view" data-view="ajustes" hidden>
+        <div class="viewHead"><h1>Ajustes</h1><p class="lede">Sons, atualização, inicialização e atalhos do aion-copilot.</p></div>
+        <div class="settingsGrid">
+          <article class="card">
+            <div class="cardHead"><h2>Sons</h2></div>
+            <p class="emptyText">O som que os lembretes e alertas vão tocar, quando chegarem nas próximas versões.</p>
+            <label class="field"><span class="k">Som</span>
+              <select class="soundPreset">
+                <option value="sino">Sino</option>
+                <option value="ping">Ping</option>
+                <option value="alerta">Alerta</option>
+                <option value="suave">Suave</option>
+              </select>
+            </label>
+            <label class="field"><span class="k">Volume</span>
+              <span class="rangeRow"><input class="soundVolume" type="range" min="0" max="100" step="10" value="70" /><span class="rangeValue soundVolumeValue">70%</span></span>
+            </label>
+            <div class="actions"><button type="button" class="pillBtn soundTest">Testar</button><span class="note soundNote"></span></div>
+          </article>
+
+          <article class="card">
+            <div class="cardHead"><h2>Atualizações</h2><span class="emptyText currentVersion"></span></div>
+            <div class="choices" role="radiogroup" aria-label="Como atualizar">
+              <label class="choice"><input type="radio" name="updateMode" value="auto" /><span>Automática<small>baixa sozinha e instala com o AION 2 fechado</small></span></label>
+              <label class="choice"><input type="radio" name="updateMode" value="notify" /><span>Só avisar<small>mostra a versão nova e instala quando você mandar</small></span></label>
+              <label class="choice"><input type="radio" name="updateMode" value="off" /><span>Desligada<small>só procura quando você pedir</small></span></label>
+            </div>
+            <p class="updateLine"></p>
+            <div class="updateBar" hidden><div class="updateFill"></div></div>
+            <div class="actions">
+              <button type="button" class="pillBtn updateCheck">Verificar agora</button>
+              <button type="button" class="pillBtn updateNowBtn" hidden>Atualizar agora</button>
+              <button type="button" class="link updateSkip" hidden>Pular esta versão</button>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="cardHead"><h2>Inicialização</h2></div>
+            <button type="button" class="toggleRow autostartOpt" role="switch" aria-checked="false">
+              <span>Iniciar com o Windows<small>pega os nomes desde a tela de login</small></span><span class="switch"></span>
+            </button>
+          </article>
+
+          <article class="card">
+            <div class="cardHead"><h2>Atalhos</h2><button type="button" class="link openMeterSettings">Mudar</button></div>
+            <ul class="miniList hotkeys"></ul>
+            <p class="emptyText hotkeysOff" hidden>Os atalhos estão desligados nas configurações do medidor.</p>
+          </article>
+        </div>
+      </section>
     </main>
+    <script src="/src/js/copilotBus.js"></script>
+    <script src="/src/js/whatsNewCore.js"></script>
     <script src="/src/js/timersCore.js"></script>
     <script src="/src/js/routineAuto.js"></script>
     <script src="/src/js/painel.js"></script>

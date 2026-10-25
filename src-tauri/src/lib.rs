@@ -29,9 +29,21 @@ pub mod config;
 #[cfg(feature = "desktop")]
 pub mod copilot;
 #[cfg(feature = "desktop")]
+pub mod copilot_changelog;
+#[cfg(feature = "desktop")]
 pub mod copilot_map;
 #[cfg(feature = "desktop")]
 pub mod copilot_pets;
+#[cfg(feature = "desktop")]
+pub mod copilot_sound;
+#[cfg(feature = "desktop")]
+pub mod copilot_store;
+#[cfg(feature = "desktop")]
+pub mod copilot_update;
+// Singular on purpose: CI's platform-boundary grep takes a path ending in
+// "windows" followed by :: for the windows crate.
+#[cfg(feature = "desktop")]
+pub mod copilot_window;
 #[cfg(feature = "desktop")]
 pub mod history;
 #[cfg(feature = "desktop")]

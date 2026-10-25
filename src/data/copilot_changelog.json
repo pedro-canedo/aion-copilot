@@ -1,0 +1,33 @@
+{
+  "versions": [
+    {
+      "version": "1.1.0",
+      "date": "2026-10-24",
+      "title": "Atualização automática e Novidades",
+      "items": [
+        { "tag": "novo", "text": "O aion-copilot se atualiza sozinho: baixa a versão nova do GitHub, confere se o arquivo veio inteiro e instala quando o AION 2 está fechado ou quando você sai do app. Nunca no meio do jogo." },
+        { "tag": "novo", "text": "A versão instalada aparece na barra, no rodapé do Painel e no menu de configurações da barra, com o estado da atualização." },
+        { "tag": "novo", "text": "Escolha como atualizar: automático, só avisar ou desligado. Também dá para pular uma versão." },
+        { "tag": "novo", "text": "Página Novidades no Painel, com o que mudou em cada versão e a marca da versão que você usa." },
+        { "tag": "novo", "text": "Aba Ajustes no Painel, que reúne atalhos, sons, atualização e iniciar com o Windows." },
+        { "tag": "novo", "text": "Escolha em Ajustes o som (Sino, Ping, Alerta ou Suave) e o volume dos lembretes e alertas que chegam nas próximas versões, com um botão para testar." },
+        { "tag": "melhorado", "text": "Transparência e cadeado de cada overlay ficam guardados no próprio app e continuam valendo depois de atualizar." }
+      ]
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-10-18",
+      "title": "Primeira versão",
+      "items": [
+        { "tag": "novo", "text": "Barra do aion-copilot sempre na tela, com o Painel e a lista de overlays. Cada overlay lembra se estava aberto e onde ficou." },
+        { "tag": "novo", "text": "Medidor de dano com DPS, cura, CP, mortes e ressurreições, modo Auto (chefe mundial, expedição, treino, monstros e PvP) e detalhes por habilidade." },
+        { "tag": "novo", "text": "Painel com início, histórico de lutas por tipo de chefe, personagens, placar de PvP, rotina e chefes de campo." },
+        { "tag": "novo", "text": "Rotina que se preenche sozinha: Energia de Odyle, tempo e pontos do Abismo, kinah do dia, presença, missões de desafio, arena e um checklist que zera nos resets." },
+        { "tag": "novo", "text": "Alvo com vida, tempo estimado para matar e, no PvP, seu placar contra o jogador; Grupo com classe, nível e CP de cada membro." },
+        { "tag": "novo", "text": "Timers dos eventos agendados e a volta de cada chefe de campo, com contagem regressiva." },
+        { "tag": "novo", "text": "Mapa com a sua posição, camadas e pontos de coleta que você identifica uma vez; Mascotes com o radar por espécie contra a sua coleção." },
+        { "tag": "novo", "text": "Instalador em português que não pede administrador, e fonte de navegador para mostrar o medidor no OBS." }
+      ]
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Overlay plus every tool window. Every window label must match something here \u2014 a window that is absent gets no permissions at all, so window.__TAURI__.opener is never injected and tauriBridge.js dies on its first destructure, leaving a blank window. details-* covers the per-fight windows, which are labelled by fight id; pw_* covers plugin widgets (pw_<plugin>_<widget>).",
+  "description": "Overlay plus every tool window. Every window label must match something here \u2014 a window that is absent gets no permissions at all, so window.__TAURI__.opener is never injected and tauriBridge.js dies on its first destructure, leaving a blank window. details-* covers the per-fight windows, which are labelled by fight id; pw_* covers plugin widgets (pw_<plugin>_<widget>). aion-copilot: copilot-* covers its newer windows (copilot_window.rs checks every label).",
   "windows": [
     "main",
     "settings",
@@ -17,6 +17,7 @@
     "pets",
     "painel",
     "hub",
+    "copilot-*",
     "plugin-*",
     "pw_*"
   ],

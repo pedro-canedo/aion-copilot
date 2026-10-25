@@ -1136,6 +1136,15 @@ fn quit_app(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+/// aion-copilot: what quitting saves, for an update's installer, which closes
+/// the app as soon as it starts (copilot_update::install).
+#[cfg_attr(not(feature = "selfupdate"), allow(dead_code))]
+pub(crate) fn copilot_save_before_exit(app: &tauri::AppHandle) {
+    save_fights_before_reset(app);
+    flush_copilot_map_before_exit(app);
+    flush_settings_before_exit(app);
+}
+
 fn flush_settings_before_exit(app: &tauri::AppHandle) {
     if let Some(state) = app.try_state::<AppState>() {
         if let Err(error) = state.settings.flush() {
@@ -1895,7 +1904,10 @@ const DETAILS_USER_PLACED_KEY: &str = "window.details.userPlaced";
 /// left. Per-fight windows (details-*) are deliberately absent: they are
 /// opened to be read and closed, and keying geometry by fight id would grow
 /// settings without bound.
-const TOOL_WINDOWS: [&str; 12] = ["details", "settings", "history", "routine", "group", "bosses", "target", "timers", "map", "pets", "hub", "painel"];
+/// aion-copilot: the meter's own, then every copilot window (copilot_window).
+fn tool_windows() -> impl Iterator<Item = &'static str> {
+    ["details", "settings", "history"].into_iter().chain(crate::copilot_window::labels())
+}
 
 /// Remember where tool window `label` is and its size. Called on every move
 /// and resize, and every 5 s as before: with only the timer, a window moved
@@ -2441,26 +2453,16 @@ fn open_history_window_inner(app: &tauri::AppHandle) -> Result<(), String> {
 /// always-on-top window that remembers where it was left:
 /// "routine" (daily/weekly checklist and reset timers), "group" (party),
 /// "timers" (the next scheduled events, field bosses and resets), "map"
-/// (where you are, with the map's layers) and the rest.
+/// (where you are, with the map's layers) and the rest. The table is in
+/// `copilot_window`.
 fn copilot_overlay_spec(label: &str) -> Option<(&'static str, &'static str, (f64, f64))> {
-    match label {
-        "routine" => Some(("routine.html", "aion-copilot — Rotina", (300.0, 430.0))),
-        "group" => Some(("group.html", "aion-copilot — Grupo", (280.0, 260.0))),
-        "bosses" => Some(("bosses.html", "aion-copilot — Chefes", (300.0, 340.0))),
-        "target" => Some(("target.html", "aion-copilot — Alvo", (300.0, 250.0))),
-        "timers" => Some(("timers.html", "aion-copilot — Timers", (340.0, 380.0))),
-        "map" => Some(("map.html", "aion-copilot — Mapa", (560.0, 600.0))),
-        "pets" => Some(("pets.html", "aion-copilot — Mascotes", (320.0, 380.0))),
-        "hub" => Some(("hub.html", "aion-copilot — Barra", (450.0, 48.0))),
-        "painel" => Some(("painel.html", "aion-copilot — Painel", (1100.0, 700.0))),
-        _ => None,
-    }
+    crate::copilot_window::find(label).map(|w| (w.page, w.title, w.size))
 }
 
 /// The Painel is an ordinary window (frame, taskbar, not over the game);
 /// every other copilot overlay floats transparent above it.
 fn copilot_is_overlay(label: &str) -> bool {
-    label != "painel"
+    crate::copilot_window::find(label).is_none_or(|w| w.overlay)
 }
 
 fn open_copilot_overlay(app: &tauri::AppHandle, label: &str) -> Result<(), String> {
@@ -2471,17 +2473,14 @@ fn open_copilot_overlay(app: &tauri::AppHandle, label: &str) -> Result<(), Strin
     }
     let (x, y, w, h) = birth_place(app, Some(label), size, true);
     let overlay = copilot_is_overlay(label);
-    let min = match label {
-        "hub" => (200.0, 36.0),
-        "map" => (360.0, 320.0),
-        _ if overlay => (220.0, 140.0),
-        _ => (760.0, 480.0),
-    };
+    let spec = crate::copilot_window::find(label);
+    let min = spec.map_or((220.0, 140.0), |w| w.min_size);
+    let framed = spec.is_some_and(|w| w.kind == crate::copilot_window::Kind::Panel);
     let window = tauri::WebviewWindowBuilder::new(app, label, tauri::WebviewUrl::App(page.into()))
         .title(title)
-        .decorations(!overlay)
+        .decorations(framed)
         .transparent(overlay)
-        .shadow(!overlay)
+        .shadow(framed)
         .always_on_top(overlay)
         .resizable(true)
         .skip_taskbar(overlay)
@@ -2508,27 +2507,18 @@ fn open_copilot_overlay(app: &tauri::AppHandle, label: &str) -> Result<(), Strin
 /// game lays out its HUD), the others in a column under it. The Painel is
 /// centred, like any window.
 fn copilot_default_place(window: &tauri::WebviewWindow, label: &str, size: (f64, f64)) {
-    if label == "painel" {
+    use crate::copilot_window::Place;
+    // Logical px from the right edge to the window's right edge, and from the top.
+    let place = crate::copilot_window::find(label).map_or(Place::FromRight(24.0, 300.0), |w| w.place);
+    let Place::FromRight(from_right, top) = place else {
         let _ = window.center();
         return;
-    }
+    };
     let Ok(Some(monitor)) = window.current_monitor() else { return };
     let scale = monitor.scale_factor();
     let origin = monitor.position();
     let screen = monitor.size();
     let right = origin.x as f64 + screen.width as f64;
-    // Logical px from the right edge to the window's right edge, and from the top.
-    let (from_right, top) = match label {
-        "hub" => (360.0, 12.0),
-        "target" => (24.0, 300.0),
-        "group" => (24.0, 570.0),
-        "routine" => (340.0, 300.0),
-        "bosses" => (340.0, 740.0),
-        "timers" => (656.0, 300.0),
-        "map" => (972.0, 300.0),
-        "pets" => (656.0, 696.0),
-        _ => (24.0, 300.0),
-    };
     // Never past the left edge, on a screen too narrow for the column.
     let x = (right - (from_right + size.0) * scale).max(origin.x as f64);
     let y = origin.y as f64 + top * scale;
@@ -2572,42 +2562,17 @@ fn copilot_timer_rules() -> crate::copilot::TimerSchedule {
 /// `enable` sets it; either way returns whether it is on.
 #[tauri::command]
 fn copilot_autostart(enable: Option<bool>) -> Result<bool, String> {
-    #[cfg(windows)]
-    {
-        use std::os::windows::process::CommandExt;
-        const NO_WINDOW: u32 = 0x0800_0000;
-        const KEY: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Run";
-        if let Some(on) = enable {
-            let exe = std::env::current_exe().map_err(|e| e.to_string())?;
-            let quoted = format!("\"{}\"", exe.display());
-            let mut cmd = std::process::Command::new("reg");
-            if on {
-                cmd.args(["add", KEY, "/v", "aion-copilot", "/t", "REG_SZ", "/d", &quoted, "/f"]);
-            } else {
-                cmd.args(["delete", KEY, "/v", "aion-copilot", "/f"]);
-            }
-            let _ = cmd.creation_flags(NO_WINDOW).status();
-        }
-        let on = std::process::Command::new("reg")
-            .args(["query", KEY, "/v", "aion-copilot"])
-            .creation_flags(NO_WINDOW)
-            .output()
-            .map(|o| o.status.success())
-            .unwrap_or(false);
-        Ok(on)
+    if let Some(on) = enable {
+        crate::platform::copilot::set_autostart(on)?;
     }
-    #[cfg(not(windows))]
-    {
-        let _ = enable;
-        Ok(false)
-    }
+    Ok(crate::platform::copilot::autostart())
 }
 
 /// aion-copilot: which windows are up, for the bar's overlay list.
 #[tauri::command]
 fn copilot_overlay_states(app: tauri::AppHandle) -> std::collections::HashMap<String, bool> {
-    let mut out: std::collections::HashMap<String, bool> = ["routine", "group", "bosses", "target", "timers", "map", "pets", "painel"]
-        .iter()
+    let mut out: std::collections::HashMap<String, bool> = crate::copilot_window::labels()
+        .filter(|&l| l != crate::copilot_window::BAR)
         .map(|l| (l.to_string(), app.get_webview_window(l).is_some()))
         .collect();
     out.insert("meter".into(), meter_wanted(&app));
@@ -3394,6 +3359,8 @@ pub fn run() {
                 if matches!(event, tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit) {
                     flush_settings_before_exit(app);
                     flush_copilot_map_before_exit(app);
+                    // aion-copilot: a downloaded update installs on the way out.
+                    crate::copilot_update::on_exit(app);
                 }
             })
             .build())
@@ -3418,7 +3385,7 @@ pub fn run() {
                 crate::plugins::note_resized(window.app_handle(), window, *size);
             }
             if matches!(event, tauri::WindowEvent::Moved(_) | tauri::WindowEvent::Resized(_))
-                && TOOL_WINDOWS.contains(&window.label())
+                && tool_windows().any(|l| l == window.label())
             {
                 save_tool_window_geometry(window.app_handle(), window.label());
             }
@@ -3670,10 +3637,15 @@ pub fn run() {
                 });
             }
 
+            // aion-copilot: updates from its GitHub releases, and the version
+            // the Novidades page was last read at.
+            crate::copilot_changelog::init(app.handle());
+            crate::copilot_update::start(app.handle());
+
             // aion-copilot: its overlays come back if they were open.
-            for label in ["hub", "routine", "group", "bosses", "target", "timers", "map", "pets"] {
+            for label in crate::copilot_window::WINDOWS.iter().filter(|w| w.reopen).map(|w| w.label) {
                 // The bar is always there: it is how the other windows open.
-                if label == "hub" || state_settings_flag(app.handle(), &format!("copilot.{label}Open")) {
+                if label == crate::copilot_window::BAR || state_settings_flag(app.handle(), &format!("copilot.{label}Open")) {
                     let handle = app.handle().clone();
                     tauri::async_runtime::spawn(async move {
                         tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
@@ -4007,7 +3979,7 @@ pub fn run() {
                             // (details-*) are deliberately absent: they are
                             // opened to be read and closed, and keying geometry
                             // by fight id would grow settings without bound.
-                            for label in TOOL_WINDOWS {
+                            for label in tool_windows() {
                                 save_tool_window_geometry(&handle, label);
                             }
                         }
@@ -4247,6 +4219,17 @@ pub fn run() {
             copilot_pet_name,
             copilot_map_tile,
             copilot_map_tile_store,
+            // aion-copilot: the document store and the alert sounds.
+            crate::copilot_store::copilot_store_get,
+            crate::copilot_store::copilot_store_put,
+            crate::copilot_sound::copilot_play_sound,
+            // aion-copilot: updates and the Novidades page.
+            crate::copilot_update::copilot_update_status,
+            crate::copilot_update::copilot_update_check,
+            crate::copilot_update::copilot_update_install,
+            crate::copilot_update::copilot_update_skip,
+            crate::copilot_changelog::copilot_whats_new,
+            crate::copilot_changelog::copilot_whats_new_seen,
             open_settings_window,
             close_settings_window,
             tool_window_ready,

@@ -14,6 +14,7 @@
         <button type="button" class="brand" title="Abrir o Painel">
           <span class="mark"><img src="/assets/copilot-logo.svg" alt="" /></span>
           <span class="word">aion-<b>copilot</b></span>
+          <span class="ver" hidden></span>
         </button>
         <div class="tools" role="toolbar" aria-label="Overlays">
           <span class="sep" aria-hidden="true"></span>
@@ -26,16 +27,20 @@
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
           </button>
         </div>
+        <div class="pills" hidden></div>
         <button type="button" class="collapse" aria-label="Recolher a barra" aria-expanded="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
         </button>
       </div>
       <div class="tip" role="tooltip" hidden></div>
       <div class="menu" role="menu" hidden>
+        <button type="button" class="opt updateOpt" role="menuitem"><span><span class="updateOptTitle">Atualizações</span><small class="updateOptLine">—</small></span><span></span></button>
         <button type="button" class="opt autostartOpt" role="menuitemcheckbox" aria-checked="false"><span>Iniciar com o Windows<small>pega os nomes desde a tela de login</small></span><span class="switch"></span></button>
         <button type="button" class="opt settingsOpt" role="menuitem"><span>Configurações do medidor<small>idioma, cores, atalhos, streaming</small></span><span></span></button>
       </div>
     </div>
+    <script src="/src/js/copilotBus.js"></script>
+    <script src="/src/js/whatsNewCore.js"></script>
     <script src="/src/js/hub.js"></script>
   </body>
 </html>

@@ -12,8 +12,9 @@ tráfego do jogo, sem conta e sem servidor. Projeto pessoal, gratuito e não com
 ## Instalação
 
 1. Instale o [Npcap](https://npcap.com/#download) com as opções padrão (*WinPcap API-compatible Mode* marcado).
-2. Baixe o instalador na [última release](https://github.com/pedro-canedo/aion-copilot/releases/latest)
-   e rode. Ele instala por usuário, sem pedir administrador.
+2. Baixe o [instalador da versão mais recente](https://github.com/pedro-canedo/aion-copilot/releases/latest/download/aion-copilot_x64-setup.exe)
+   (ou escolha na [página de releases](https://github.com/pedro-canedo/aion-copilot/releases)) e rode. Ele instala por usuário,
+   sem pedir administrador, e depois se atualiza sozinho.
 3. O instalador ainda não é assinado: no aviso do SmartScreen, clique em **Mais informações → Executar assim mesmo**.
 4. Abra o aion-copilot antes de entrar no jogo, para que ele veja os nomes desde a tela de carregamento.
 

@@ -214,21 +214,101 @@ CP), **PvP** (abates e mortes por jogador, `copilot-pvp.json`), Rotina e Chefes 
 - Configurações → Streaming: liga um servidor local (porta 18731) com o medidor ao vivo para o OBS.
   Incluído no build pessoal pela feature Cargo `obs`, sem nenhum dos serviços online do A2Tools.
 
-**Instalador** (`aion-copilot_1.0.0_x64-setup.exe`, NSIS, pt-BR)
+**Instalador** (`aion-copilot_<versão>_x64-setup.exe`, NSIS, pt-BR)
 - Instala por usuário em `%LOCALAPPDATA%\aion-copilot` (sem pedir administrador), com atalho no
   Menu Iniciar e desinstalador (que preserva as configurações).
 - Inclui o WebView2 (bootstrapper embutido). O Npcap não vai junto: a licença gratuita não permite
   redistribuir o instalador dele. Se faltar (detecta pelas duas visões do registro e pela DLL), o
   instalador avisa e abre https://npcap.com/#download.
 
+## 1.1 — atualização automática e Novidades
+
+**Atualização pelo GitHub** (`src-tauri/src/copilot_update.rs`, feature Cargo `selfupdate`)
+- 20 s depois de abrir e depois a cada 6 h, pede `api.github.com/repos/pedro-canedo/aion-copilot/releases/latest`
+  (`User-Agent: aion-copilot/<versão>`, `If-None-Match` com a ETag guardada; um 304 reaproveita o release guardado em
+  `copilot.update.release`). Tira `copilot-v`/`v` da tag, ignora rascunho, pré-release e versão com sufixo
+  (`1.2.1-test`) e compara por semver com a versão do `tauri.conf.json`.
+- O release só vale com os dois assets exatos `aion-copilot_<versão>_x64-setup.exe` e `….exe.sha256`
+  (`"<hex>  <arquivo>"`, a primeira palavra são os 64 hex).
+- `copilot.update.mode`: **auto** (padrão) baixa sozinho; **notify** só avisa e instala no clique; **off** só verifica
+  quando pedido (`copilot_update_check` funciona em qualquer modo). `copilot.update.skip` = versão recusada (a
+  seguinte volta a aparecer).
+- Instalar: baixa o `.sha256`, baixa o exe para `%TEMP%\aion-copilot-update\` calculando o hash durante o download
+  (mesmo padrão do updater do upstream, que é `online`), hash diferente apaga o arquivo e para; hash certo salva as
+  configurações, roda `"<exe>" /P /R /UPDATE` (por usuário, sem UAC, reabre o app) e sai. **Nunca com o AION 2
+  aberto**: o instalador fecha o app, então um instalador conferido espera o jogo fechar (verifica a cada 30 s) ou
+  o app sair (aí roda sem `/R`).
+- Comandos `copilot_update_status` (`{current, latest, state, progress, error, mode}`; `state` = indisponível, ocioso,
+  verificando, atualizado, disponível, ignorada, baixando, pronta, instalando ou erro), `copilot_update_check`,
+  `copilot_update_install`, `copilot_update_skip(version)`; eventos `copilot-update-status` (a cada mudança) e
+  `copilot-update-progress` (`{pct}`). Sem a feature `selfupdate` os comandos existem e dizem "indisponível".
+- O hash vem do mesmo release: protege contra arquivo corrompido, não contra a conta do GitHub comprometida.
+
+**Novidades** (`src-tauri/src/copilot_changelog.rs`)
+- `src/data/copilot_changelog.json` embutido: `{versions:[{version, date, title, items:[{tag: novo|melhorado|corrigido,
+  text}]}]}`, a mais nova primeiro. Testes: parseia, versões estritamente decrescentes, a primeira é a do
+  `tauri.conf.json`, tags válidas.
+- `copilot_whats_new()` → `{current, lastSeen, versions}`; `copilot_whats_new_seen()` grava `copilot.lastSeenVersion`.
+  Instalação nova grava a versão atual em silêncio na primeira abertura.
+- Painel, aba **Novidades** (`data-view="novidades"`): a mais nova primeiro, data em pt-BR, chips Novo/Melhorado/
+  Corrigido, "Sua versão" na versão instalada e, no topo, "Atualização X disponível · Atualizar agora". Abrir a aba
+  chama `copilot_whats_new_seen()`.
+- Barra: pílula "Novidades da X" enquanto `lastSeenVersion` < versão atual e "Atualização X" com versão disponível
+  ou baixada; o clique abre o Painel na aba certa pela configuração `copilot.painel.view` (o Painel a lê ao abrir ou
+  ouve com ele aberto, e a limpa). A lógica pura está em `public/src/js/whatsNewCore.js` (`tests/whats-new.test.mjs`).
+
+**Ajustes** (aba do Painel, `data-view="ajustes"`)
+- Sons: preset e volume em `copilot.sound.preset` / `copilot.sound.volume` (0..1), "Testar" chama `copilot_play_sound`.
+- Atualizações: modo (`copilot.update.mode`), versão instalada, "Verificar agora", "Atualizar agora", "Pular esta
+  versão", estado e progresso pelos eventos `copilot-update-status` / `copilot-update-progress`.
+- Inicialização: "Iniciar com o Windows" (`copilot_autostart`, o mesmo da barra).
+- Atalhos: mostra os atalhos do medidor e abre as configurações dele para mudar.
+
+**Fundação** (usada pelas próximas fases)
+- `src-tauri/src/copilot_window.rs`: a tabela de janelas do copilot (label, página, tamanho, posição inicial, reabrir).
+  Toda janela nova precisa caber em `src-tauri/capabilities/default.json` (glob `copilot-*`; um teste confere).
+- `src-tauri/src/copilot_store.rs`: documentos do usuário (`checklist`, `auras`, `alerts`) em `copilot-<nome>.json`,
+  com rev (`copilot_store_get`/`copilot_store_put`, evento `copilot-store-changed`).
+- `src-tauri/src/copilot_sound.rs`: sons Sino/Ping/Alerta/Suave sintetizados (`copilot_play_sound(preset, volume)`).
+- `src-tauri/src/platform/{win32,unsupported}/copilot.rs`: o que o copilot pede ao sistema (som, PID do jogo,
+  instalador da atualização, iniciar com o Windows).
+- `public/src/js/copilotBus.js`, carregado por toda janela do copilot: `copilotBus.settings.get/peek/set/on` (o mapa
+  de configurações do Rust, evento `setting-changed`) e `copilotBus.store.get/put/subscribe` (o store de documentos).
+  Fora do app devolve os valores padrão e não grava nada (`tests/copilot-bus.test.mjs`).
+- `overlayChrome.js`: transparência e cadeado de cada overlay em `copilot.ov.<label>.opacity` / `.locked` (label da
+  janela). Na primeira abertura da 1.1 copia uma vez o que a 1.0 guardava no localStorage
+  (`copilot.<label>.opacity/.locked`, que continuam lá) e marca `copilot.ov.migrated.<label>=1`
+  (`tests/overlay-chrome-settings.test.mjs`).
+
 ## Desenvolvimento
 
 ```bash
 npm install
-npm run dev:offline          # app em modo dev, sem recursos online do A2Tools (com OBS)
+npm run dev:offline          # app em modo dev, sem recursos online do A2Tools (com OBS e atualização)
 npm run build:offline        # gera src-tauri/target/release/bundle/nsis/*.exe
-cd src-tauri && cargo test --no-default-features --features desktop,obs
+cd src-tauri && cargo test --no-default-features --features desktop,obs,selfupdate
 ```
+
+### Publicar uma versão (release)
+
+`scripts/copilot-release.ps1` faz os passos 2, 3 e 5 (menos publicar) e imprime os comandos dos passos 4 a 6:
+
+1. Subir a versão **só** no `src-tauri/tauri.conf.json` (o `Cargo.toml` e o `package.json` ficam com a do upstream) e
+   escrever a entrada no topo de `src/data/copilot_changelog.json` (texto para o usuário). Atualizar o selo
+   `v<versão>` do `site/index.html`. Commitar (sem dar push na `main` ainda: passo 6).
+2. Rodar os testes e `npm run build:offline`.
+3. `Get-FileHash` → `aion-copilot_<versão>_x64-setup.exe.sha256` (`"<hex>  <arquivo>"`, ASCII sem BOM) e a cópia sem
+   versão `aion-copilot_x64-setup.exe` (para o link `releases/latest/download/aion-copilot_x64-setup.exe` do site e do
+   README).
+4. `git tag copilot-v<versão>` e `git push origin copilot-v<versão>`. **Nunca** `git push --tags`: o `git fetch upstream`
+   traz as tags `v2.0.x` do upstream.
+5. `gh release create copilot-v<versão>` com o exe, o `.sha256` e a cópia sem versão (o script gera as notas a partir
+   do changelog).
+6. **Só depois do release publicado**: `git push origin main`. O `pages.yml` publica o site a cada push na `main` que
+   mexe em `site/**`; antes do release, o botão "Baixar para Windows" e o link do README dariam 404 e o selo
+   mostraria uma versão que ainda não existe.
+
+Quem está na 1.0.0 instala a 1.1.0 à mão uma vez; dali em diante o app se atualiza.
 
 ### Testar sem jogar (replay)
 
@@ -247,8 +327,9 @@ As mudanças do aion-copilot ficam concentradas em: `src/copilot.css`, `public/{
 `public/src/js/{routine,routineAuto,group,bosses,target,timers,timersCore,overlayChrome,copilot,pets}.js`, `public/{bosses,target,timers}.html`, `src/data/copilot_timers.json`, `public/src/routine.css`, `src-tauri/src/copilot.rs`,
 `src-tauri/src/copilot_map.rs`, `src-tauri/src/copilot_pets.rs`, `src-tauri/src/capture/pets.rs`, `src-tauri/src/capture/world_position.rs`, `src-tauri/src/combat/world_tracker.rs`,
 `src/data/map/`, `tools/map/`, `public/src/js/{mapTiles,map}.js`, `public/map.html`, `public/src/map.css`,
-`public/{hub,painel}.html`, `public/src/js/{hub,painel,copilotView,copilotPvp,copilotSettings}.js`,
-`src-tauri/windows/hooks.nsh`,
+`public/{hub,painel}.html`, `public/src/js/{hub,painel,copilotView,copilotPvp,copilotSettings,copilotBus,whatsNewCore}.js`,
+`src-tauri/windows/hooks.nsh`, `src-tauri/src/{copilot_window,copilot_store,copilot_sound,copilot_update,copilot_changelog}.rs`,
+`src-tauri/src/platform/{win32,unsupported}/copilot.rs`, `src/data/copilot_changelog.json`, `scripts/copilot-release.ps1`,
 trechos marcados com `aion-copilot` no código.
 
 ## Dados de terceiros

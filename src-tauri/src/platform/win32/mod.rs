@@ -7,6 +7,8 @@ mod atomic_file_tests;
 pub mod admin;
 pub mod atomic_file;
 pub mod clock;
+// aion-copilot: alert sounds, the update installer, starting with Windows.
+pub mod copilot;
 pub mod dialog;
 pub mod discord_ipc;
 pub mod hotkeys;

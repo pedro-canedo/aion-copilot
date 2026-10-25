@@ -147,14 +147,10 @@ pub fn restore_names(storage: &DataStorage, session: &NameSession, game_pid: u32
     restored
 }
 
-#[cfg(windows)]
+/// The process id of the running game, if any (None where the platform
+/// cannot tell).
 pub fn game_pid() -> Option<u32> {
-    crate::platform::window_detector::aion2_pid()
-}
-
-#[cfg(not(windows))]
-pub fn game_pid() -> Option<u32> {
-    None
+    crate::platform::copilot::aion2_pid()
 }
 
 /// What kind of target you hit last, for the meter's tabs to follow it:

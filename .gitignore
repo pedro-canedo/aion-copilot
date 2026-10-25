@@ -39,6 +39,10 @@ settings.properties
 !/public/src/
 /public/src/*
 !/public/src/js/
+# aion-copilot: the bar's and the Painel's styles have no other source either
+# (map.css and routine.css were added by hand; these two had been left out).
+!/public/src/hub.css
+!/public/src/painel.css
 # ...and the images the UI loads (class icons, logo, support buttons). They have
 # no other source in the repo, so without them a clean checkout (CI, the Arch
 # package, a build from source) shows broken class icons.

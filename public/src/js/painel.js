@@ -1,9 +1,12 @@
 // aion-copilot: the Painel — the app's home. A summary of everything (resets,
 // "não perca", the last fight, bosses coming back, your characters) and the
-// full views: fight history, characters, routine and field bosses.
+// full views: fight history, characters, routine and field bosses; then what
+// each version brought (Novidades) and the app's own settings (Ajustes).
 (() => {
   const tauri = window.__TAURI__;
   const invoke = (cmd, args) => (tauri?.core?.invoke ? tauri.core.invoke(cmd, args) : Promise.resolve(null));
+  const bus = window.copilotBus;
+  const news = window.copilotWhatsNew;
   const $ = (sel, root = document) => root.querySelector(sel);
   const lang = document.documentElement.lang || undefined;
   const DAY = 86_400_000;
@@ -64,8 +67,10 @@
 
   // ---------- navigation ----------
   const show = (view) => {
+    if (!document.querySelector(`.view[data-view="${view}"]`)) return;
     for (const b of document.querySelectorAll(".navBtn")) b.classList.toggle("isActive", b.dataset.view === view);
     for (const v of document.querySelectorAll(".view")) v.hidden = v.dataset.view !== view;
+    if (view === "novidades") markNewsSeen();
   };
   for (const b of document.querySelectorAll(".navBtn")) b.addEventListener("click", () => show(b.dataset.view));
   for (const b of document.querySelectorAll("[data-goto]")) b.addEventListener("click", () => show(b.dataset.goto));
@@ -379,6 +384,232 @@
       return card;
     }));
   };
+
+  // ---------- Novidades ----------
+  let whatsNew = null;
+  let update = null;
+  const unread = () => !!whatsNew?.lastSeen && news.isNewer(whatsNew.current, whatsNew.lastSeen);
+  const renderNews = () => {
+    const box = $(".versions");
+    $(".navDot").hidden = !unread();
+    if (!whatsNew?.versions?.length) {
+      box.innerHTML = '<p class="emptyText">Nenhuma novidade registrada.</p>';
+      return;
+    }
+    box.replaceChildren(...whatsNew.versions.map((v) => {
+      const card = document.createElement("article");
+      const current = v.version === whatsNew.current;
+      card.className = "card version";
+      card.classList.toggle("isCurrent", current);
+      const head = document.createElement("div");
+      head.className = "versionHead";
+      head.innerHTML = '<span class="versionNum"></span><span class="versionTitle"></span><span class="versionDate"></span>';
+      $(".versionNum", head).textContent = v.version;
+      $(".versionTitle", head).textContent = v.title;
+      $(".versionDate", head).textContent = news.formatDate(v.date);
+      if (current) {
+        const yours = document.createElement("span");
+        yours.className = "yours";
+        yours.textContent = "Sua versão";
+        $(".versionTitle", head).after(yours);
+      }
+      const ul = document.createElement("ul");
+      ul.className = "items";
+      ul.append(...(v.items || []).map((item) => {
+        const li = document.createElement("li");
+        const chip = news.tagChip(item.tag);
+        li.innerHTML = '<span class="kind"></span><span></span>';
+        li.firstChild.classList.add(chip.cls);
+        li.firstChild.textContent = chip.text;
+        li.lastChild.textContent = item.text;
+        return li;
+      }));
+      card.append(head, ul);
+      return card;
+    }));
+  };
+  // Read: the bar's pill and the dot here go away.
+  const markNewsSeen = () => {
+    if (!unread()) return;
+    whatsNew.lastSeen = whatsNew.current;
+    renderNews();
+    invoke("copilot_whats_new_seen").catch(() => {});
+  };
+  const loadNews = async () => {
+    const w = await invoke("copilot_whats_new").catch(() => null);
+    if (w && Array.isArray(w.versions)) whatsNew = w;
+    renderNews();
+    if (!$(".view[data-view='novidades']").hidden) markNewsSeen();
+  };
+
+  // ---------- Ajustes: atualizações ----------
+  const updateEls = {
+    line: $(".updateLine"),
+    bar: $(".updateBar"),
+    fill: $(".updateFill"),
+    check: $(".updateCheck"),
+    skip: $(".updateSkip"),
+    now: document.querySelectorAll(".updateNowBtn"),
+  };
+  // What the updater is doing, here and on the Novidades card.
+  const renderUpdate = () => {
+    const s = update || {};
+    const { text, tone } = news.updateLine(s);
+    updateEls.line.textContent = text;
+    updateEls.line.className = `updateLine ${tone}`;
+    $(".currentVersion").textContent = s.current ? `Versão instalada: ${s.current}` : "";
+    const foot = $(".appVersion");
+    foot.textContent = s.current ? `v${s.current} · ${news.versionFoot(s)}` : "";
+    foot.classList.toggle("warn", news.updateOffered(s));
+    foot.hidden = !s.current;
+    updateEls.bar.hidden = s.state !== "baixando";
+    updateEls.fill.style.width = `${Number(s.progress) || 0}%`;
+    updateEls.check.disabled = ["indisponível", "verificando", "instalando"].includes(s.state);
+    // "Atualizar agora" also takes back a skipped version, and retries after an error.
+    const offer = !!s.latest && ["disponível", "pronta", "ignorada", "erro"].includes(s.state);
+    for (const b of updateEls.now) {
+      b.hidden = !offer;
+      b.disabled = false;
+    }
+    updateEls.skip.hidden = !(s.latest && (s.state === "disponível" || s.state === "pronta"));
+    $(".updateCard").hidden = !news.updateOffered(s);
+    $(".updateCardText").textContent =
+      s.state === "pronta" ? `Atualização ${s.latest} pronta para instalar`
+        : s.state === "baixando" ? `Atualização ${s.latest} baixando… ${Number(s.progress) || 0}%`
+          : `Atualização ${s.latest} disponível`;
+    $(".updateCard .updateNowBtn").hidden = s.state === "baixando";
+    for (const r of document.querySelectorAll('input[name="updateMode"]')) r.checked = r.value === (s.mode || "auto");
+  };
+  const setUpdate = (s) => {
+    if (s && typeof s === "object") update = s;
+    renderUpdate();
+  };
+  // A command that fails says why on the line.
+  const updateFailed = (e) => setUpdate({ ...(update || {}), state: "erro", error: String(e?.message || e || "") || null });
+  updateEls.check.addEventListener("click", () => {
+    setUpdate({ ...(update || {}), state: "verificando" });
+    invoke("copilot_update_check").then(setUpdate, updateFailed);
+  });
+  for (const b of updateEls.now) {
+    b.addEventListener("click", () => {
+      for (const o of updateEls.now) o.disabled = true;
+      invoke("copilot_update_install").then(() => invoke("copilot_update_status").then(setUpdate), updateFailed);
+    });
+  }
+  updateEls.skip.addEventListener("click", () => {
+    if (update?.latest) invoke("copilot_update_skip", { version: update.latest }).then(setUpdate, updateFailed);
+  });
+  for (const r of document.querySelectorAll('input[name="updateMode"]')) {
+    r.addEventListener("change", () => {
+      if (!r.checked) return;
+      bus?.settings.set("copilot.update.mode", r.value);
+      if (update) update.mode = r.value;
+      // Switched to automatic with a version waiting: it starts downloading.
+      if (r.value === "auto" && update?.state === "disponível") invoke("copilot_update_check").then(setUpdate, updateFailed);
+    });
+  }
+  bus?.listen("copilot-update-status", setUpdate);
+  bus?.listen("copilot-update-progress", (p) => {
+    if (update?.state !== "baixando") return;
+    update.progress = Number(p?.pct) || 0;
+    renderUpdate();
+  });
+
+  // ---------- Ajustes: sons ----------
+  const preset = $(".soundPreset");
+  const volume = $(".soundVolume");
+  const soundNote = $(".soundNote");
+  const PRESETS = ["sino", "ping", "alerta", "suave"];
+  // The volume is kept as 0..1, the way copilot_play_sound takes it.
+  const showSound = () => {
+    const p = bus?.settings.peek("copilot.sound.preset", "sino");
+    preset.value = PRESETS.includes(p) ? p : "sino";
+    const v = Number(bus?.settings.peek("copilot.sound.volume", "0.7") ?? 0.7);
+    volume.value = String(Math.round((Number.isFinite(v) ? Math.min(1, Math.max(0, v)) : 0.7) * 100));
+    $(".soundVolumeValue").textContent = `${volume.value}%`;
+  };
+  preset.addEventListener("change", () => bus?.settings.set("copilot.sound.preset", preset.value));
+  volume.addEventListener("input", () => ($(".soundVolumeValue").textContent = `${volume.value}%`));
+  // Kept when let go, not on every step of the drag.
+  volume.addEventListener("change", () => bus?.settings.set("copilot.sound.volume", String(Number(volume.value) / 100)));
+  $(".soundTest").addEventListener("click", () => {
+    const vol = Number(volume.value) / 100;
+    soundNote.classList.remove("isError");
+    soundNote.textContent = vol === 0 ? "Volume no zero: nada toca." : "";
+    if (vol === 0) return;
+    invoke("copilot_play_sound", { preset: preset.value, volume: vol }).catch((e) => {
+      soundNote.textContent = `Não tocou: ${e?.message || e}`;
+      soundNote.classList.add("isError");
+    });
+  });
+
+  // ---------- Ajustes: inicialização e atalhos ----------
+  const autostart = $(".autostartOpt");
+  const showAutostart = (on) => autostart.setAttribute("aria-checked", String(!!on));
+  invoke("copilot_autostart", {}).then(showAutostart).catch(() => {});
+  autostart.addEventListener("click", async () => {
+    const want = autostart.getAttribute("aria-checked") !== "true";
+    showAutostart(await invoke("copilot_autostart", { enable: want }).catch(() => !want));
+  });
+
+  // The meter's keys, with its defaults (app.rs, start_hotkeys); changed in
+  // its own settings, which "Mudar" opens.
+  const HOTKEYS = [
+    ["dpsMeter.toggleWindowHotkey", "Mostrar/ocultar o medidor", "Ctrl+Alt+Up"],
+    ["dpsMeter.lockHotkey", "Travar/destravar o medidor", "Ctrl+Alt+L"],
+    ["dpsMeter.hotkey", "Recarregar dados", "Ctrl+Alt+R"],
+  ];
+  const showHotkeys = () => {
+    $(".hotkeys").replaceChildren(...HOTKEYS.map(([key, name, fallback]) => {
+      const li = document.createElement("li");
+      li.innerHTML = '<span></span><span class="t"></span>';
+      li.firstChild.textContent = name;
+      li.lastChild.textContent = bus?.settings.peek(key, fallback) ?? fallback;
+      return li;
+    }));
+    // Unset, the OS default (core.js globalHotkeysOn): off on Linux.
+    const stored = bus?.settings.peek("dpsMeter.globalHotkeys");
+    const on = stored === "true" || stored === "false" ? stored === "true" : !/Linux/.test(globalThis.navigator?.userAgent || "");
+    $(".hotkeysOff").hidden = on;
+  };
+  $(".openMeterSettings").addEventListener("click", () => invoke("open_settings_window").catch(() => {}));
+
+  // ---------- opened on a view ----------
+  // The bar's pills open the Painel on a view through this setting, read at
+  // start or heard while open, and cleared once shown.
+  const GOTO_KEY = "copilot.painel.view";
+  const goto = (view) => {
+    if (!view) return;
+    show(view);
+    bus?.settings.set(GOTO_KEY, "");
+    tauri?.window?.getCurrentWindow?.()?.setFocus?.()?.catch?.(() => {});
+  };
+
+  if (bus) {
+    bus.settings.ready().then(() => {
+      showSound();
+      showHotkeys();
+      goto(bus.settings.peek(GOTO_KEY));
+    });
+    bus.settings.on(GOTO_KEY, goto);
+    bus.settings.on("copilot.sound.preset", showSound);
+    bus.settings.on("copilot.sound.volume", showSound);
+    bus.settings.on("copilot.update.mode", (mode) => {
+      if (update) update.mode = mode || "auto";
+      renderUpdate();
+    });
+    for (const [key] of HOTKEYS) bus.settings.on(key, showHotkeys);
+    bus.settings.on("dpsMeter.globalHotkeys", showHotkeys);
+    bus.settings.on("copilot.lastSeenVersion", (v) => {
+      if (whatsNew && v) whatsNew.lastSeen = v;
+      renderNews();
+    });
+  } else {
+    showSound();
+    showHotkeys();
+  }
+  loadNews();
+  invoke("copilot_update_status").then(setUpdate, () => setUpdate(null));
 
   // ---------- status ----------
   const renderStatus = async () => {
